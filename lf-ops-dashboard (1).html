@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LF Counter Ops</title>
+<style>
+:root{
+  --bg:#F6F5F0;
+  --surface:#FFFFFF;
+  --line:#DEDACD;
+  --ink:#22261F;
+  --ink-soft:#5C6154;
+  --brass:#8B6F2E;
+  --brass-soft:#EFE6CE;
+  --good:#33633F;
+  --good-soft:#E4EFE3;
+  --bad:#96392A;
+  --bad-soft:#F5E4DF;
+  --sidebar:#1E2119;
+  --sidebar-ink:#D9D6C7;
+  --sidebar-line:#33372B;
+  --radius:3px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.45;
+}
+#shell{display:flex;min-height:100vh;}
+
+/* Sidebar */
+#sidebar{
+  width:224px;flex:0 0 224px;background:var(--sidebar);color:var(--sidebar-ink);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+}
+#brand{padding:22px 20px 16px;border-bottom:1px solid var(--sidebar-line);}
+#brand .mark{font-size:11px;letter-spacing:.04em;color:#B7A567;margin-bottom:2px;}
+#brand h1{font-size:18px;margin:0;font-weight:600;color:#F3F1E6;}
+#brand .sub{font-size:12px;color:#8D9080;margin-top:3px;}
+nav{flex:1;padding:10px 0;overflow-y:auto;}
+nav button{
+  display:block;width:100%;text-align:left;background:none;border:none;
+  color:var(--sidebar-ink);padding:10px 20px;font-size:13.5px;cursor:pointer;
+  border-left:3px solid transparent;font-family:var(--font);
+}
+nav button:hover{background:#272B20;}
+nav button.active{background:#272B20;border-left-color:var(--brass);color:#F3F1E6;font-weight:600;}
+#savebox{padding:14px 18px 18px;border-top:1px solid var(--sidebar-line);}
+#savebox .status{font-size:11.5px;color:#8D9080;margin-bottom:8px;min-height:14px;}
+#savebox .status.dirty{color:#D8B25A;}
+.btn{
+  display:inline-block;padding:8px 14px;border-radius:var(--radius);border:1px solid transparent;
+  font-size:13px;cursor:pointer;font-family:var(--font);font-weight:600;
+}
+.btn-brass{background:var(--brass);color:#fff;}
+.btn-brass:hover{background:#7A5F26;}
+.btn-outline{background:transparent;border-color:#4A4E3F;color:#E4E1D2;}
+.btn-outline:hover{background:#272B20;}
+.btn-block{display:block;width:100%;margin-bottom:8px;text-align:center;}
+
+/* Main */
+#main{flex:1;padding:28px 36px 60px;max-width:1180px;}
+h2.page-title{font-size:21px;margin:0 0 4px;font-weight:600;}
+p.page-sub{color:var(--ink-soft);margin:0 0 22px;font-size:13.5px;}
+
+.grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:26px;}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+.kpi .label{font-size:11.5px;color:var(--ink-soft);margin-bottom:6px;}
+.kpi .value{font-size:22px;font-weight:700;}
+.kpi .delta{font-size:12px;margin-top:4px;}
+.kpi .delta.up{color:var(--good);}
+.kpi .delta.down{color:var(--bad);}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:20px;}
+.panel h3{font-size:14.5px;margin:0 0 14px;font-weight:600;}
+.panel-flex{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media(max-width:900px){.panel-flex{grid-template-columns:1fr;}}
+
+form.entry-form{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line);}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:11.5px;color:var(--ink-soft);}
+.field input,.field select,.field textarea{
+  font-family:var(--font);font-size:13px;padding:7px 9px;border:1px solid var(--line);
+  border-radius:var(--radius);background:#fff;min-width:130px;color:var(--ink);
+}
+.field textarea{min-width:220px;}
+.field.chk{flex-direction:row;align-items:center;gap:6px;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);font-weight:600;}
+tbody tr:hover{background:#FAF9F3;}
+td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.tag.good{background:var(--good-soft);color:var(--good);}
+.tag.bad{background:var(--bad-soft);color:var(--bad);}
+.tag.neutral{background:var(--brass-soft);color:var(--brass);}
+.rowlink{background:none;border:none;color:var(--brass);cursor:pointer;font-size:12.5px;font-weight:600;padding:0;margin-right:10px;font-family:var(--font);}
+.rowlink.danger{color:var(--bad);}
+.empty{color:var(--ink-soft);font-style:italic;padding:16px 0;}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.hint{font-size:12px;color:var(--ink-soft);margin-top:8px;}
+.banner{background:var(--brass-soft);border:1px solid #DDCB94;color:#6B5220;border-radius:var(--radius);padding:12px 16px;font-size:13px;margin-bottom:20px;}
+.banner b{display:block;margin-bottom:2px;}
+#themePage{position:fixed;inset:0;background:var(--sidebar);color:#F3F1E6;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;text-align:center;}
+#themePage .themeTitle{font-size:30px;font-weight:700;letter-spacing:.02em;}
+#themePage .themeSub{font-size:14px;color:#B7A567;margin-top:10px;}
+#themeCorner{position:fixed;right:24px;bottom:24px;width:280px;height:180px;border-radius:var(--radius);overflow:hidden;border:1px solid #3a3e30;background:#14160f;}
+#themeCorner img{width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0;}
+#themeCorner img.active{display:block;}
+#themeUploadWrap{position:fixed;right:24px;bottom:214px;}
+</style>
+</head>
+<body>
+<div id="themePage" onclick="enterApp(event)">
+  <div class="themeTitle">LF Retail Team</div>
+  <div class="themeSub">Tap anywhere to open Counter Operations</div>
+  <div id="themeCorner"></div>
+  <div id="themeUploadWrap" onclick="event.stopPropagation()">
+    <label class="btn btn-outline" style="cursor:pointer;font-size:12px;">
+      Upload photos (<span id="themeCount">0</span>/50)
+      <input type="file" id="themeUploadInput" accept="image/*" multiple style="display:none;">
+    </label>
+  </div>
+</div>
+<div id="shell">
+  <aside id="sidebar">
+    <div id="brand">
+      <div class="mark">COUNTER OPERATIONS</div>
+    </div>
+    <nav id="navlist"></nav>
+    <div id="savebox">
+      <div class="status" id="dirtyStatus"></div>
+      <button class="btn btn-brass btn-block" onclick="saveDatabase()">Save database (.sqlite)</button>
+      <label class="btn btn-outline btn-block" style="cursor:pointer;">
+        Load database
+        <input type="file" id="loadFileInput" accept=".sqlite,.db" style="display:none;">
+      </label>
+      <button class="btn btn-outline btn-block" onclick="exportSQL()" style="font-weight:400;font-size:12px;">Export as .sql</button>
+      <button class="btn btn-outline btn-block" onclick="exportJSON()" style="font-weight:400;font-size:12px;">Export as .json</button>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ============ STATE ============ */
+let db = null;
+let dirty = false;
+let activeTab = 'dashboard';
+let editing = {}; // per-entity id being edited
+let charts = {};  // active Chart.js instances to destroy on re-render
+
+const TABS = [
+  {id:'dashboard', label:'Dashboard'},
+  {id:'share', label:'Share / Reports'},
+  {id:'stores', label:'Stores'},
+  {id:'employees', label:'Employees'},
+  {id:'sales', label:'Daily Sales'},
+  {id:'audits', label:'Display Stock / Shrinkage'},
+  {id:'visits', label:'Staffed vs Unstaffed'},
+  {id:'status', label:'Employee Status Log'},
+  {id:'storecontacts', label:'Store Contacts'},
+  {id:'warehouse', label:'Warehouse'},
+  {id:'salary', label:'Salary Sheet'},
+  {id:'soh', label:'Stock on Hand'},
+  {id:'import', label:'Bulk Import'},
+  {id:'customfields', label:'Custom Fields'},
+];
+
+/* ============ INIT ============ */
+let SQLLib = null;
+initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` })
+  .then(SQL => {
+    SQLLib = SQL;
+    db = new SQL.Database();
+    createSchema();
+    ensureSchemaMigrations();
+    buildNav();
+    render();
+    loadThemeImages();
+    document.getElementById('themeUploadInput').addEventListener('change', handleThemeUpload);
+    resetIdleTimer();
+  })
+  .catch(err => {
+    document.getElementById('main').innerHTML =
+      `<div class="banner"><b>Could not load the database engine.</b>This app needs an internet connection the first time it runs (to fetch sql.js), then works fully offline in your browser. Error: ${esc(err.message||err)}</div>`;
+  });
+
+function createSchema(){
+  db.exec(`
+    CREATE TABLE stores(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      concept TEXT DEFAULT 'LF',
+      store_code TEXT,
+      store_name TEXT NOT NULL,
+      area_name TEXT,
+      region_name TEXT,
+      district_name TEXT,
+      store_type TEXT,
+      active INTEGER DEFAULT 1
+    );
+    CREATE TABLE employees(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      store_id INTEGER,
+      designation TEXT,
+      status TEXT DEFAULT 'Active',
+      join_date TEXT,
+      mobile TEXT,
+      salary REAL,
+      salary_remark TEXT,
+      notes TEXT
+    );
+    CREATE TABLE store_contacts(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id INTEGER,
+      contact_name TEXT,
+      contact_role TEXT,
+      mobile TEXT,
+      email TEXT,
+      address TEXT,
+      notes TEXT
+    );
+    CREATE TABLE categories(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL
+    );
+    CREATE TABLE daily_sales(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_date TEXT NOT NULL,
+      store_id INTEGER,
+      employee_id INTEGER,
+      category_id INTEGER,
+      qty REAL DEFAULT 0,
+      mrp_value REAL DEFAULT 0,
+      discount REAL DEFAULT 0,
+      net_value REAL DEFAULT 0,
+      remarks TEXT
+    );
+    CREATE TABLE stock_audits(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      audit_date TEXT NOT NULL,
+      store_id INTEGER,
+      category_id INTEGER,
+      system_qty REAL DEFAULT 0,
+      counted_qty REAL DEFAULT 0,
+      shrinkage_qty REAL DEFAULT 0,
+      damage_qty REAL DEFAULT 0,
+      counted_by TEXT,
+      remarks TEXT
+    );
+    CREATE TABLE counter_visits(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visit_date TEXT NOT NULL,
+      store_id INTEGER,
+      staffed INTEGER NOT NULL DEFAULT 1,
+      employee_id INTEGER,
+      sales_value REAL DEFAULT 0,
+      qty_sold REAL DEFAULT 0,
+      shrinkage_qty REAL DEFAULT 0,
+      damage_qty REAL DEFAULT 0,
+      notes TEXT
+    );
+    CREATE TABLE employee_status_log(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER,
+      log_date TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attendance TEXT,
+      notes TEXT
+    );
+    CREATE TABLE soh_snapshot(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      snapshot_date TEXT NOT NULL,
+      store_id INTEGER,
+      category_id INTEGER,
+      item_code TEXT,
+      item_desc TEXT,
+      soh_qty REAL DEFAULT 0,
+      mrp REAL DEFAULT 0
+    );
+    CREATE INDEX idx_soh_date ON soh_snapshot(snapshot_date);
+    CREATE INDEX idx_sales_date ON daily_sales(sale_date);
+    CREATE TABLE upload_logs(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      file_name TEXT,
+      file_size INTEGER,
+      file_hash TEXT UNIQUE,
+      target TEXT,
+      rows_inserted INTEGER,
+      rows_skipped INTEGER,
+      uploaded_at TEXT
+    );
+    CREATE TABLE custom_fields(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity TEXT NOT NULL,
+      field_label TEXT NOT NULL,
+      field_type TEXT NOT NULL DEFAULT 'text',
+      options TEXT,
+      sort_order INTEGER DEFAULT 0
+    );
+    CREATE TABLE custom_field_values(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      field_id INTEGER NOT NULL,
+      record_id INTEGER NOT NULL,
+      value TEXT
+    );
+    CREATE INDEX idx_cfv_lookup ON custom_field_values(field_id, record_id);
+    CREATE TABLE theme_images(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      data_url TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+    CREATE TABLE warehouse_items(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shop_no TEXT,
+      group_name TEXT,
+      image_data TEXT,
+      style_code TEXT,
+      ean_number TEXT,
+      season TEXT,
+      mrp REAL,
+      hsn_code TEXT,
+      gst_rate REAL,
+      rrp REAL,
+      qty REAL,
+      remarks TEXT,
+      category TEXT,
+      sub_category TEXT,
+      size TEXT,
+      colour TEXT,
+      options TEXT,
+      working_entry TEXT,
+      stock_diff REAL
+    );
+    CREATE TABLE salary_sheet(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pay_month TEXT,
+      region TEXT, position TEXT, sale TEXT, store_code TEXT, city_name TEXT, store_name_text TEXT,
+      employee_name_text TEXT, mobile_number TEXT, employee_count REAL, roll_type TEXT, employment_status TEXT,
+      doj TEXT, doe TEXT, doj_doe_status TEXT, remarks TEXT,
+      salary REAL, lop REAL, ot_days REAL, pay_days REAL, ot_amount REAL, big_bills REAL, incentives REAL,
+      conveyance_expenses REAL, total_reimbursements REAL,
+      basic REAL, da REAL, hra REAL, earned_salary REAL,
+      pf_basic REAL, pf_employee_cont REAL, p_tax REAL, sal_adv_deductions REAL, tds REAL, total_deductions REAL, take_home_salary REAL,
+      esi_empr REAL, epf_empr REAL, ctc REAL,
+      payment_mode TEXT, bank_name TEXT, account_holder_name TEXT, account_no TEXT, ifsc TEXT, branch TEXT
+    );
+  `);
+  const seedCats = ['Earrings','Chains','Necklace','Anklet','Bracelet','Bangles','Finger Ring','Others'];
+  const stmt = db.prepare('INSERT INTO categories(name) VALUES (?)');
+  seedCats.forEach(c => stmt.run([c]));
+  stmt.free();
+  dirty = false;
+}
+
+function ensureSchemaMigrations(){
+  try{
+    const cols = q("PRAGMA table_info(employee_status_log)").map(c=>c.name);
+    if(!cols.includes('attendance')){
+      db.exec("ALTER TABLE employee_status_log ADD COLUMN attendance TEXT");
+    }
+  }catch(e){ /* fresh db already has the column; ignore */ }
+  try{
+    const cols = q("PRAGMA table_info(employees)").map(c=>c.name);
+    if(!cols.includes('mobile')) db.exec("ALTER TABLE employees ADD COLUMN mobile TEXT");
+    if(!cols.includes('salary')) db.exec("ALTER TABLE employees ADD COLUMN salary REAL");
+    if(!cols.includes('salary_remark')) db.exec("ALTER TABLE employees ADD COLUMN salary_remark TEXT");
+  }catch(e){ /* fresh db already has these columns; ignore */ }
+  try{
+    const tables = q("SELECT name FROM sqlite_master WHERE type='table' AND name='store_contacts'");
+    if(!tables.length){
+      db.exec(`CREATE TABLE store_contacts(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        store_id INTEGER,
+        contact_name TEXT,
+        contact_role TEXT,
+        mobile TEXT,
+        email TEXT,
+        address TEXT,
+        notes TEXT
+      )`);
+    }
+  }catch(e){ /* ignore */ }
+  try{
+    const tables = q("SELECT name FROM sqlite_master WHERE type='table' AND name='custom_fields'");
+    if(!tables.length){
+      db.exec(`CREATE TABLE custom_fields(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity TEXT NOT NULL,
+        field_label TEXT NOT NULL,
+        field_type TEXT NOT NULL DEFAULT 'text',
+        options TEXT,
+        sort_order INTEGER DEFAULT 0
+      )`);
+      db.exec(`CREATE TABLE custom_field_values(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        field_id INTEGER NOT NULL,
+        record_id INTEGER NOT NULL,
+        value TEXT
+      )`);
+      db.exec(`CREATE INDEX idx_cfv_lookup ON custom_field_values(field_id, record_id)`);
+    }
+  }catch(e){ /* ignore */ }
+  try{
+    const tables = q("SELECT name FROM sqlite_master WHERE type='table' AND name='theme_images'");
+    if(!tables.length){
+      db.exec(`CREATE TABLE theme_images(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data_url TEXT NOT NULL,
+        sort_order INTEGER DEFAULT 0
+      )`);
+    }
+  }catch(e){ /* ignore */ }
+  try{
+    const tables = q("SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_items'");
+    if(!tables.length){
+      db.exec(`CREATE TABLE warehouse_items(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        shop_no TEXT, group_name TEXT, image_data TEXT, style_code TEXT, ean_number TEXT, season TEXT,
+        mrp REAL, hsn_code TEXT, gst_rate REAL, rrp REAL, qty REAL, remarks TEXT, category TEXT,
+        sub_category TEXT, size TEXT, colour TEXT, options TEXT, working_entry TEXT, stock_diff REAL
+      )`);
+    }
+  }catch(e){ /* ignore */ }
+  try{
+    const tables = q("SELECT name FROM sqlite_master WHERE type='table' AND name='salary_sheet'");
+    if(!tables.length){
+      db.exec(`CREATE TABLE salary_sheet(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pay_month TEXT,
+        region TEXT, position TEXT, sale TEXT, store_code TEXT, city_name TEXT, store_name_text TEXT,
+        employee_name_text TEXT, mobile_number TEXT, employee_count REAL, roll_type TEXT, employment_status TEXT,
+        doj TEXT, doe TEXT, doj_doe_status TEXT, remarks TEXT,
+        salary REAL, lop REAL, ot_days REAL, pay_days REAL, ot_amount REAL, big_bills REAL, incentives REAL,
+        conveyance_expenses REAL, total_reimbursements REAL,
+        basic REAL, da REAL, hra REAL, earned_salary REAL,
+        pf_basic REAL, pf_employee_cont REAL, p_tax REAL, sal_adv_deductions REAL, tds REAL, total_deductions REAL, take_home_salary REAL,
+        esi_empr REAL, epf_empr REAL, ctc REAL,
+        payment_mode TEXT, bank_name TEXT, account_holder_name TEXT, account_no TEXT, ifsc TEXT, branch TEXT
+      )`);
+    }
+  }catch(e){ /* ignore */ }
+}
+
+/* ============ DB HELPERS ============ */
+function q(sql, params=[]){
+  const stmt = db.prepare(sql);
+  if(params.length) stmt.bind(params);
+  const out=[];
+  while(stmt.step()) out.push(stmt.getAsObject());
+  stmt.free();
+  return out;
+}
+function run(sql, params=[]){
+  const stmt = db.prepare(sql);
+  stmt.run(params);
+  stmt.free();
+  dirty = true;
+  updateDirtyStatus();
+}
+function esc(s){
+  if(s===undefined||s===null) return '';
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function rowAttr(r){ return JSON.stringify(r).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/</g,'&lt;'); }
+
+/* ============ CUSTOM FIELDS (no-code add/remove fields per tab) ============ */
+const CUSTOM_ENTITIES = {
+  stores: 'Stores',
+  employees: 'Employees',
+  daily_sales: 'Daily Sales',
+  stock_audits: 'Display Stock / Shrinkage',
+  counter_visits: 'Staffed vs Unstaffed',
+  employee_status_log: 'Employee Status Log',
+  store_contacts: 'Store Contacts',
+  warehouse_items: 'Warehouse'
+};
+function getCustomFields(entity){ return q('SELECT * FROM custom_fields WHERE entity=? ORDER BY sort_order, id', [entity]); }
+function customFieldInputHtml(field, value){
+  const val = (value===undefined||value===null) ? '' : value;
+  if(field.field_type==='select'){
+    const opts = (field.options||'').split(',').map(o=>o.trim()).filter(Boolean);
+    return `<select name="cf_${field.id}"><option value="">—</option>${opts.map(o=>`<option ${String(val)===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  }
+  if(field.field_type==='number') return `<input type="number" step="0.01" name="cf_${field.id}" value="${esc(val)}">`;
+  if(field.field_type==='date') return `<input type="date" name="cf_${field.id}" value="${esc(val)}">`;
+  return `<input type="text" name="cf_${field.id}" value="${esc(val)}">`;
+}
+function getRecordCustomValues(entity, recordId){
+  if(!recordId) return {};
+  const fields = getCustomFields(entity);
+  if(!fields.length) return {};
+  const rows = q(`SELECT field_id, value FROM custom_field_values WHERE record_id=? AND field_id IN (${fields.map(f=>f.id).join(',')})`, [recordId]);
+  const map = {}; rows.forEach(r=> map[r.field_id]=r.value); return map;
+}
+function customFieldsFormHtml(entity, recordId){
+  const fields = getCustomFields(entity);
+  if(!fields.length) return '';
+  const vals = getRecordCustomValues(entity, recordId);
+  return fields.map(f=>`<div class="field"><label>${esc(f.field_label)}</label>${customFieldInputHtml(f, vals[f.id])}</div>`).join('');
+}
+function customFieldsTableHeaders(entity){
+  return getCustomFields(entity).map(f=>`<th>${esc(f.field_label)}</th>`).join('');
+}
+function customFieldsTableCells(entity, recordId){
+  const fields = getCustomFields(entity);
+  if(!fields.length) return '';
+  const vals = getRecordCustomValues(entity, recordId);
+  return fields.map(f=>`<td>${esc(vals[f.id])||'—'}</td>`).join('');
+}
+function saveCustomFieldValues(entity, recordId, formData){
+  getCustomFields(entity).forEach(f=>{
+    const val = formData.get('cf_'+f.id);
+    const existing = q('SELECT id FROM custom_field_values WHERE field_id=? AND record_id=?', [f.id, recordId]);
+    if(existing.length){ run('UPDATE custom_field_values SET value=? WHERE id=?', [val, existing[0].id]); }
+    else if(val!==null && val!==''){ run('INSERT INTO custom_field_values(field_id,record_id,value) VALUES (?,?,?)', [f.id, recordId, val]); }
+  });
+}
+function newRecordId(){ return q('SELECT last_insert_rowid() id')[0].id; }
+function fmtN(n,dec=0){ n=Number(n)||0; return n.toLocaleString('en-IN',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function daysAgoStr(n){ const d=new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
+
+function updateDirtyStatus(){
+  const el = document.getElementById('dirtyStatus');
+  if(!el) return;
+  el.textContent = dirty ? 'Unsaved changes — click Save' : 'All changes saved to this session';
+  el.className = 'status' + (dirty ? ' dirty' : '');
+}
+
+/* ============ CONTENT FINGERPRINT (duplicate-file detection) ============ */
+// Fast, dependency-free hash (cyrb53-style) — used only to spot re-uploads of the
+// same file, not for security. Works from file:// pages where Web Crypto may not.
+function fingerprintBytes(bytes){
+  let h1 = 0xdeadbeef ^ bytes.length, h2 = 0x41c6ce57 ^ bytes.length;
+  for(let i=0;i<bytes.length;i++){
+    const ch = bytes[i];
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return (4294967296*(2097151 & h2)+(h1>>>0)).toString(16);
+}
+
+/* ============ EXPORT AS .sql / .json ============ */
+function downloadText(text, filename, mime){
+  const blob = new Blob([text], {type: mime});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function allTableNames(){
+  return q("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").map(r=>r.name);
+}
+function exportSQL(){
+  let out = '-- LF Ops export — ' + new Date().toISOString() + '\n\n';
+  allTableNames().forEach(name=>{
+    const createStmt = q("SELECT sql FROM sqlite_master WHERE type='table' AND name=?",[name])[0].sql;
+    out += createStmt + ';\n';
+    const rows = q(`SELECT * FROM ${name}`);
+    rows.forEach(r=>{
+      const cols = Object.keys(r);
+      const vals = cols.map(c=>{
+        const v = r[c];
+        if(v===null||v===undefined) return 'NULL';
+        if(typeof v==='number') return v;
+        return `'${String(v).replace(/'/g,"''")}'`;
+      });
+      out += `INSERT INTO ${name}(${cols.join(',')}) VALUES(${vals.join(',')});\n`;
+    });
+    out += '\n';
+  });
+  downloadText(out, `lf-ops-${todayStr()}.sql`, 'application/sql');
+}
+function exportJSON(){
+  const dump = {};
+  allTableNames().forEach(name => dump[name] = q(`SELECT * FROM ${name}`));
+  downloadText(JSON.stringify(dump, null, 2), `lf-ops-${todayStr()}.json`, 'application/json');
+}
+
+/* ============ SAVE / LOAD ============ */
+function saveDatabase(){
+  const data = db.export();
+  const blob = new Blob([data], {type:'application/x-sqlite3'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `lf-ops-${todayStr()}.sqlite`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  dirty = false;
+  updateDirtyStatus();
+}
+document.getElementById('loadFileInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(dirty && !confirm('Loading a file will replace the current in-memory data, and unsaved changes will be lost. Continue?')) { e.target.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const bytes = new Uint8Array(ev.target.result);
+      db = new SQLLib.Database(bytes);
+      ensureSchemaMigrations();
+      dirty = false;
+      updateDirtyStatus();
+      render();
+      loadThemeImages();
+    }catch(err){
+      const looksLikeOffice = /\.(xlsx|xls|csv)$/i.test(file.name);
+      if(looksLikeOffice){
+        alert(`"${file.name}" looks like a spreadsheet, not a saved database backup.\n\nThis "Load database" button only re-opens a .sqlite file that this app itself saved earlier.\n\nTo bring in spreadsheet data, use the "Bulk Import" tab in the left menu instead.`);
+      } else {
+        alert('Could not read this file as a database: '+err.message);
+      }
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value='';
+});
+
+window.addEventListener('beforeunload', function(e){
+  if(dirty){ e.preventDefault(); e.returnValue=''; }
+});
+
+/* ============ NAV / RENDER ============ */
+function buildNav(){
+  const nav = document.getElementById('navlist');
+  nav.innerHTML = TABS.map(t=>`<button data-tab="${t.id}" onclick="goTab('${t.id}')">${t.label}</button>`).join('');
+}
+function goTab(id){ activeTab = id; editing = {}; render(); }
+function render(){
+  document.querySelectorAll('#navlist button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab===activeTab);
+  });
+  Object.values(charts).forEach(c=>c && c.destroy && c.destroy());
+  charts = {};
+  updateDirtyStatus();
+  const fn = {
+    dashboard: renderDashboard,
+    share: renderShare,
+    stores: renderStores,
+    employees: renderEmployees,
+    sales: renderSales,
+    audits: renderAudits,
+    visits: renderVisits,
+    status: renderStatusLog,
+    storecontacts: renderStoreContacts,
+    warehouse: renderWarehouse,
+    salary: renderSalarySheet,
+    soh: renderSoh,
+    import: renderImport,
+    customfields: renderCustomFields,
+  }[activeTab];
+  fn();
+}
+
+/* ============ OPTION HELPERS ============ */
+function storeOptions(sel){
+  const stores = q('SELECT id, store_name, store_code FROM stores WHERE active=1 ORDER BY store_name');
+  if(!stores.length) return '<option value="">Add a store first</option>';
+  return stores.map(s=>`<option value="${s.id}" ${String(sel)===String(s.id)?'selected':''}>${esc(s.store_name)}${s.store_code?' ('+esc(s.store_code)+')':''}</option>`).join('');
+}
+function employeeOptions(sel, storeId){
+  let sql = 'SELECT id, name FROM employees WHERE status!="Exited"';
+  const params=[];
+  if(storeId){ sql += ' AND store_id=?'; params.push(storeId); }
+  sql += ' ORDER BY name';
+  const emps = q(sql, params);
+  let opts = '<option value="">— none / unstaffed —</option>';
+  opts += emps.map(e=>`<option value="${e.id}" ${String(sel)===String(e.id)?'selected':''}>${esc(e.name)}</option>`).join('');
+  return opts;
+}
+function categoryOptions(sel){
+  const cats = q('SELECT id,name FROM categories ORDER BY name');
+  return cats.map(c=>`<option value="${c.id}" ${String(sel)===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('');
+}
+function storeName(id){ const r=q('SELECT store_name FROM stores WHERE id=?',[id]); return r[0]?r[0].store_name:'—'; }
+
+/* ============ SHARE / REPORTS ============ */
+function buildDashboardSummary(from, to){
+  const cur = q(`SELECT COALESCE(SUM(net_value),0) v, COALESCE(SUM(qty),0) qy FROM daily_sales WHERE sale_date BETWEEN ? AND ?`,[from,to])[0];
+  const shrink = q(`SELECT COALESCE(SUM(shrinkage_qty),0) s, COALESCE(SUM(damage_qty),0) d FROM stock_audits WHERE audit_date BETWEEN ? AND ?`,[from,to])[0];
+  const staffed = q(`SELECT AVG(sales_value) a FROM counter_visits WHERE staffed=1 AND visit_date BETWEEN ? AND ?`,[from,to])[0];
+  const unstaffed = q(`SELECT AVG(sales_value) a FROM counter_visits WHERE staffed=0 AND visit_date BETWEEN ? AND ?`,[from,to])[0];
+  const storesCount = q('SELECT COUNT(*) c FROM stores WHERE active=1')[0].c;
+  const empCount = q("SELECT COUNT(*) c FROM employees WHERE status='Active'")[0].c;
+  let out = `*LF Ops — Dashboard Summary*\n${from} to ${to}\n\n`;
+  out += `Net sales: Rs.${fmtN(cur.v)}\n`;
+  out += `Units sold: ${fmtN(cur.qy)}\n`;
+  out += `Active stores: ${storesCount}\n`;
+  out += `Active employees: ${empCount}\n`;
+  out += `Shrinkage: ${fmtN(shrink.s)} pcs | Damage: ${fmtN(shrink.d)} pcs\n`;
+  out += `Avg sale/visit — Staffed: Rs.${fmtN(staffed.a||0)} | Unstaffed: Rs.${fmtN(unstaffed.a||0)}\n`;
+  return out;
+}
+function buildSalesSummary(from, to, storeId){
+  const where=['sale_date BETWEEN ? AND ?']; const params=[from,to];
+  if(storeId){ where.push('store_id=?'); params.push(storeId); }
+  const byStore = q(`SELECT s.store_name sn, SUM(d.net_value) v, SUM(d.qty) qy FROM daily_sales d LEFT JOIN stores s ON s.id=d.store_id WHERE ${where.join(' AND ')} GROUP BY d.store_id ORDER BY v DESC`, params);
+  const total = byStore.reduce((a,r)=>a+r.v,0);
+  let out = `*LF Ops — Sales Summary*\n${from} to ${to}${storeId?` — ${storeName(storeId)}`:''}\n\n`;
+  if(!byStore.length) out += 'No sales in this range.\n';
+  byStore.forEach(r=>{ out += `${r.sn||'—'}: Rs.${fmtN(r.v)} (${fmtN(r.qy,0)} units)\n`; });
+  out += `\n*Total: Rs.${fmtN(total)}*\n`;
+  return out;
+}
+function buildAttendanceSummary(from, to){
+  const rows = q(`SELECT l.log_date d, emp.name n, l.attendance a, l.status s FROM employee_status_log l LEFT JOIN employees emp ON emp.id=l.employee_id WHERE l.log_date BETWEEN ? AND ? ORDER BY l.log_date, emp.name`,[from,to]);
+  let out = `*LF Ops — Attendance / Status*\n${from} to ${to}\n\n`;
+  if(!rows.length){ out += 'No log entries in this range.\n'; return out; }
+  let curDate=null;
+  rows.forEach(r=>{
+    if(r.d!==curDate){ out += `\n${r.d}\n`; curDate=r.d; }
+    out += `  ${r.n||'—'}: ${r.a||'—'} (${r.s})\n`;
+  });
+  return out;
+}
+function buildShrinkageSummary(from, to){
+  const rows = q(`SELECT s.store_name sn, SUM(a.shrinkage_qty) sh, SUM(a.damage_qty) da FROM stock_audits a LEFT JOIN stores s ON s.id=a.store_id WHERE a.audit_date BETWEEN ? AND ? GROUP BY a.store_id HAVING sh>0 OR da>0 ORDER BY (sh+da) DESC`,[from,to]);
+  let out = `*LF Ops — Shrinkage & Damage Summary*\n${from} to ${to}\n\n`;
+  if(!rows.length){ out += 'No shrinkage/damage logged in this range.\n'; return out; }
+  rows.forEach(r=>{ out += `${r.sn||'—'}: Shrinkage ${fmtN(r.sh)} | Damage ${fmtN(r.da)}\n`; });
+  return out;
+}
+function renderShare(){
+  const st = editing.share || (editing.share = {type:'dashboard', from: daysAgoStr(30), to: todayStr(), store_id:''});
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Share / Reports</h2>
+    <p class="page-sub">Build a quick text summary, then send it straight to WhatsApp or email — or copy it anywhere. Files (backups/exports) still need one manual attach step, since browsers don't allow a webpage to attach files into another app.</p>
+    <div class="panel">
+      <div class="entry-form" style="border-bottom:none;padding-bottom:0;">
+        <div class="field"><label>Report</label>
+          <select id="shType">
+            <option value="dashboard" ${st.type==='dashboard'?'selected':''}>Dashboard summary</option>
+            <option value="sales" ${st.type==='sales'?'selected':''}>Sales summary</option>
+            <option value="attendance" ${st.type==='attendance'?'selected':''}>Employee attendance / status</option>
+            <option value="shrinkage" ${st.type==='shrinkage'?'selected':''}>Shrinkage & damage</option>
+          </select>
+        </div>
+        <div class="field"><label>From</label><input type="date" id="shFrom" value="${st.from}"></div>
+        <div class="field"><label>To</label><input type="date" id="shTo" value="${st.to}"></div>
+        <div class="field"><label>Store (sales only)</label><select id="shStore"><option value="">All stores</option>${storeOptions(st.store_id)}</select></div>
+        <button class="btn btn-brass" onclick="generateReport()">Generate</button>
+      </div>
+    </div>
+    ${st.text?`
+    <div class="panel">
+      <h3>Preview — edit freely before sending</h3>
+      <textarea id="reportText" style="width:100%;min-height:220px;font-family:ui-monospace,Consolas,monospace;font-size:13px;padding:10px;border:1px solid var(--line);border-radius:var(--radius);">${esc(st.text)}</textarea>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-brass" onclick="copyReport()">Copy to clipboard</button>
+        <button class="btn btn-outline" onclick="shareWhatsApp()">Share via WhatsApp</button>
+        <button class="btn btn-outline" onclick="shareEmail()">Share via Email</button>
+        <button class="btn btn-outline" onclick="printReport()">Print / Save as PDF</button>
+      </div>
+      <p class="hint" id="reportStatus"></p>
+    </div>`:''}
+  `;
+}
+function generateReport(){
+  const st = editing.share;
+  st.type = document.getElementById('shType').value;
+  st.from = document.getElementById('shFrom').value;
+  st.to = document.getElementById('shTo').value;
+  st.store_id = document.getElementById('shStore').value;
+  if(st.type==='dashboard') st.text = buildDashboardSummary(st.from, st.to);
+  else if(st.type==='sales') st.text = buildSalesSummary(st.from, st.to, st.store_id||null);
+  else if(st.type==='attendance') st.text = buildAttendanceSummary(st.from, st.to);
+  else if(st.type==='shrinkage') st.text = buildShrinkageSummary(st.from, st.to);
+  render();
+}
+function currentReportText(){
+  const ta = document.getElementById('reportText');
+  return ta ? ta.value : ((editing.share && editing.share.text) || '');
+}
+function copyReport(){
+  const text = currentReportText();
+  const status = document.getElementById('reportStatus');
+  function fallback(){
+    const ta = document.getElementById('reportText');
+    ta.focus(); ta.select();
+    try{ document.execCommand('copy'); status.textContent = 'Copied to clipboard.'; }
+    catch(e){ status.textContent = 'Could not auto-copy — the text is selected, press Ctrl+C / Cmd+C.'; }
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>{ status.textContent = 'Copied to clipboard.'; }).catch(fallback);
+  } else { fallback(); }
+}
+function shareWhatsApp(){ window.open('https://wa.me/?text=' + encodeURIComponent(currentReportText()), '_blank'); }
+function shareEmail(){ window.location.href = 'mailto:?subject=' + encodeURIComponent('LF Ops Report') + '&body=' + encodeURIComponent(currentReportText()); }
+function printReport(){
+  const text = currentReportText();
+  const w = window.open('', '_blank');
+  w.document.write(`<pre style="font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap;font-size:13px;padding:24px;">${esc(text)}</pre>`);
+  w.document.close(); w.focus(); w.print();
+}
+function empName(id){ if(!id) return '—'; const r=q('SELECT name FROM employees WHERE id=?',[id]); return r[0]?r[0].name:'—'; }
+function catName(id){ const r=q('SELECT name FROM categories WHERE id=?',[id]); return r[0]?r[0].name:'—'; }
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  const from = daysAgoStr(30), to = todayStr();
+  const prevFrom = daysAgoStr(60), prevTo = daysAgoStr(30);
+
+  const cur = q(`SELECT COALESCE(SUM(net_value),0) v, COALESCE(SUM(qty),0) qy FROM daily_sales WHERE sale_date BETWEEN ? AND ?`,[from,to])[0];
+  const prev = q(`SELECT COALESCE(SUM(net_value),0) v FROM daily_sales WHERE sale_date BETWEEN ? AND ?`,[prevFrom,prevTo])[0];
+  const growth = prev.v>0 ? ((cur.v-prev.v)/prev.v*100) : (cur.v>0?100:0);
+
+  const storesCount = q('SELECT COUNT(*) c FROM stores WHERE active=1')[0].c;
+  const empCount = q("SELECT COUNT(*) c FROM employees WHERE status='Active'")[0].c;
+  const shrink = q(`SELECT COALESCE(SUM(shrinkage_qty),0) s, COALESCE(SUM(damage_qty),0) d FROM stock_audits WHERE audit_date BETWEEN ? AND ?`,[from,to])[0];
+
+  const staffed = q(`SELECT AVG(sales_value) a, COUNT(*) n FROM counter_visits WHERE staffed=1 AND visit_date BETWEEN ? AND ?`,[from,to])[0];
+  const unstaffed = q(`SELECT AVG(sales_value) a, COUNT(*) n FROM counter_visits WHERE staffed=0 AND visit_date BETWEEN ? AND ?`,[from,to])[0];
+
+  const trend = q(`SELECT sale_date d, SUM(net_value) v FROM daily_sales WHERE sale_date BETWEEN ? AND ? GROUP BY sale_date ORDER BY sale_date`,[from,to]);
+  const topCats = q(`SELECT c.name n, SUM(s.net_value) v FROM daily_sales s JOIN categories c ON c.id=s.category_id WHERE s.sale_date BETWEEN ? AND ? GROUP BY c.name ORDER BY v DESC LIMIT 8`,[from,to]);
+
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Dashboard</h2>
+    <p class="page-sub">Last 30 days (${from} to ${to}), compared with the 30 days before that.</p>
+    ${storesCount===0 ? `<div class="banner"><b>Nothing entered yet.</b>Start by adding your stores, then employees, then log daily sales and counter visits — the dashboard fills in as data comes in.</div>`:''}
+    <div class="grid-kpi">
+      <div class="kpi"><div class="label">Net sales (30d)</div><div class="value">₹${fmtN(cur.v)}</div>
+        <div class="delta ${growth>=0?'up':'down'}">${growth>=0?'▲':'▼'} ${fmtN(Math.abs(growth),1)}% vs prior 30d</div></div>
+      <div class="kpi"><div class="label">Units sold (30d)</div><div class="value">${fmtN(cur.qy)}</div></div>
+      <div class="kpi"><div class="label">Active stores</div><div class="value">${storesCount}</div></div>
+      <div class="kpi"><div class="label">Active employees</div><div class="value">${empCount}</div></div>
+      <div class="kpi"><div class="label">Shrinkage / damage (30d)</div><div class="value">${fmtN(shrink.s+shrink.d)} pcs</div>
+        <div class="delta down">${fmtN(shrink.s)} shrinkage &middot; ${fmtN(shrink.d)} damage</div></div>
+      <div class="kpi"><div class="label">Avg sale — staffed vs unstaffed</div>
+        <div class="value">₹${fmtN(staffed.a||0)} <span style="color:var(--ink-soft);font-size:13px;">vs</span> ₹${fmtN(unstaffed.a||0)}</div>
+        <div class="delta ${(staffed.a||0)>=(unstaffed.a||0)?'up':'down'}">per visit, based on ${staffed.n+unstaffed.n} logged visits</div></div>
+    </div>
+    <div class="panel-flex">
+      <div class="panel"><h3>Sales trend</h3><canvas id="chartTrend" height="180"></canvas></div>
+      <div class="panel"><h3>Top categories by value</h3><canvas id="chartCats" height="180"></canvas></div>
+    </div>
+    <div class="panel"><h3>Staffed vs unstaffed counters</h3><canvas id="chartStaff" height="120"></canvas></div>
+  `;
+
+  charts.trend = new Chart(document.getElementById('chartTrend'), {
+    type:'line',
+    data:{ labels: trend.map(r=>r.d), datasets:[{label:'Net sales', data:trend.map(r=>r.v), borderColor:'#8B6F2E', backgroundColor:'rgba(139,111,46,0.12)', fill:true, tension:.25}]},
+    options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+  });
+  charts.cats = new Chart(document.getElementById('chartCats'), {
+    type:'bar',
+    data:{ labels: topCats.map(r=>r.n), datasets:[{label:'Net value', data:topCats.map(r=>r.v), backgroundColor:'#8B6F2E'}]},
+    options:{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+  });
+  charts.staff = new Chart(document.getElementById('chartStaff'), {
+    type:'bar',
+    data:{ labels:['Avg sales value / visit','Avg units sold / visit'],
+      datasets:[
+        {label:'Staffed', data:[staffed.a||0, (q(`SELECT AVG(qty_sold) a FROM counter_visits WHERE staffed=1 AND visit_date BETWEEN ? AND ?`,[from,to])[0].a)||0], backgroundColor:'#33633F'},
+        {label:'Unstaffed', data:[unstaffed.a||0, (q(`SELECT AVG(qty_sold) a FROM counter_visits WHERE staffed=0 AND visit_date BETWEEN ? AND ?`,[from,to])[0].a)||0], backgroundColor:'#96392A'}
+      ]},
+    options:{ plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}} }
+  });
+}
+
+/* ============ STORES ============ */
+function renderStores(){
+  const e = editing.store || {};
+  const rows = q('SELECT * FROM stores ORDER BY active DESC, store_name');
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Stores</h2>
+    <p class="page-sub">Counters / stores you operate in under the LF concept.</p>
+    <div class="panel">
+      <form class="entry-form" id="storeForm">
+        <div class="field"><label>Store name*</label><input required name="store_name" value="${esc(e.store_name)}"></div>
+        <div class="field"><label>Store code</label><input name="store_code" value="${esc(e.store_code)}"></div>
+        <div class="field"><label>Area</label><input name="area_name" value="${esc(e.area_name)}"></div>
+        <div class="field"><label>Region</label><input name="region_name" value="${esc(e.region_name)}"></div>
+        <div class="field"><label>District</label><input name="district_name" value="${esc(e.district_name)}"></div>
+        <div class="field"><label>Store type</label><input name="store_type" value="${esc(e.store_type)}"></div>
+        <div class="field chk"><label><input type="checkbox" name="active" ${e.active===0?'':'checked'}> Active</label></div>
+        ${customFieldsFormHtml('stores', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update store':'Add store'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.store=null;render();">Cancel</button>`:''}
+      </form>
+      <table>
+        <thead><tr><th>Store</th><th>Code</th><th>Area</th><th>Region</th><th>Type</th><th>Status</th>${customFieldsTableHeaders('stores')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${esc(r.store_name)}</td><td>${esc(r.store_code)}</td><td>${esc(r.area_name)}</td>
+            <td>${esc(r.region_name)}</td><td>${esc(r.store_type)}</td>
+            <td><span class="tag ${r.active?'good':'bad'}">${r.active?'Active':'Inactive'}</span></td>
+            ${customFieldsTableCells('stores', r.id)}
+            <td><button class="rowlink" onclick='editing.store=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('stores',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="7" class="empty">No stores yet — add your first one above.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('storeForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const active = f.get('active')?1:0;
+    let recId = e.id;
+    if(e.id){
+      run(`UPDATE stores SET store_name=?,store_code=?,area_name=?,region_name=?,district_name=?,store_type=?,active=? WHERE id=?`,
+        [f.get('store_name'),f.get('store_code'),f.get('area_name'),f.get('region_name'),f.get('district_name'),f.get('store_type'),active,e.id]);
+    } else {
+      run(`INSERT INTO stores(store_name,store_code,area_name,region_name,district_name,store_type,active) VALUES (?,?,?,?,?,?,?)`,
+        [f.get('store_name'),f.get('store_code'),f.get('area_name'),f.get('region_name'),f.get('district_name'),f.get('store_type'),active]);
+      recId = newRecordId();
+    }
+    saveCustomFieldValues('stores', recId, f);
+    editing.store=null; render();
+  });
+}
+
+/* ============ EMPLOYEES ============ */
+function renderEmployees(){
+  const e = editing.employee || {};
+  const rows = q(`SELECT emp.*, s.store_name FROM employees emp LEFT JOIN stores s ON s.id=emp.store_id ORDER BY emp.status, emp.name`);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Employees</h2>
+    <p class="page-sub">Counter staff, floaters and team leads, with current status.</p>
+    <div class="panel">
+      <form class="entry-form" id="empForm">
+        <div class="field"><label>Name*</label><input required name="name" value="${esc(e.name)}"></div>
+        <div class="field"><label>Store</label><select name="store_id">${storeOptions(e.store_id)}</select></div>
+        <div class="field"><label>Designation</label><input name="designation" placeholder="Floater / TL / Staff" value="${esc(e.designation)}"></div>
+        <div class="field"><label>Status</label>
+          <select name="status">
+            ${['Active','On Leave','Inactive','Exited'].map(s=>`<option ${e.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Join date</label><input type="date" name="join_date" value="${esc(e.join_date)}"></div>
+        <div class="field"><label>Mobile number</label><input name="mobile" value="${esc(e.mobile)}"></div>
+        <div class="field"><label>Salary (take-home)</label><input type="number" step="0.01" name="salary" value="${e.salary??''}"></div>
+        <div class="field"><label>Salary remark</label><input name="salary_remark" placeholder="e.g. revised from Apr" value="${esc(e.salary_remark)}"></div>
+        <div class="field"><label>Notes</label><input name="notes" value="${esc(e.notes)}"></div>
+        ${customFieldsFormHtml('employees', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update employee':'Add employee'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.employee=null;render();">Cancel</button>`:''}
+      </form>
+      <table>
+        <thead><tr><th>Name</th><th>Store</th><th>Designation</th><th>Status</th><th>Joined</th><th>Mobile</th><th class="num">Salary</th><th>Remark</th>${customFieldsTableHeaders('employees')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${esc(r.name)}</td><td>${esc(r.store_name)||'—'}</td><td>${esc(r.designation)}</td>
+            <td><span class="tag ${r.status==='Active'?'good':(r.status==='Exited'?'bad':'neutral')}">${esc(r.status)}</span></td>
+            <td>${esc(r.join_date)||'—'}</td>
+            <td>${esc(r.mobile)||'—'}</td>
+            <td class="num">${r.salary!=null?fmtN(r.salary):'—'}</td>
+            <td>${esc(r.salary_remark)||'—'}</td>
+            ${customFieldsTableCells('employees', r.id)}
+            <td><button class="rowlink" onclick='editing.employee=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('employees',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="9" class="empty">No employees yet.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('empForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const storeId = f.get('store_id')||null;
+    const salary = f.get('salary')===''?null:Number(f.get('salary'));
+    let recId = e.id;
+    if(e.id){
+      run(`UPDATE employees SET name=?,store_id=?,designation=?,status=?,join_date=?,mobile=?,salary=?,salary_remark=?,notes=? WHERE id=?`,
+        [f.get('name'),storeId,f.get('designation'),f.get('status'),f.get('join_date'),f.get('mobile'),salary,f.get('salary_remark'),f.get('notes'),e.id]);
+    } else {
+      run(`INSERT INTO employees(name,store_id,designation,status,join_date,mobile,salary,salary_remark,notes) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [f.get('name'),storeId,f.get('designation'),f.get('status'),f.get('join_date'),f.get('mobile'),salary,f.get('salary_remark'),f.get('notes')]);
+      recId = newRecordId();
+    }
+    saveCustomFieldValues('employees', recId, f);
+    editing.employee=null; render();
+  });
+}
+
+/* ============ DAILY SALES ============ */
+function renderSales(){
+  const e = editing.sale || {};
+  const filterFrom = editing.salesFrom || daysAgoStr(14), filterTo = editing.salesTo || todayStr();
+  const rows = q(`SELECT sd.*, s.store_name, c.name cat_name, emp.name emp_name FROM daily_sales sd
+                  LEFT JOIN stores s ON s.id=sd.store_id LEFT JOIN categories c ON c.id=sd.category_id
+                  LEFT JOIN employees emp ON emp.id=sd.employee_id
+                  WHERE sd.sale_date BETWEEN ? AND ? ORDER BY sd.sale_date DESC, sd.id DESC`,[filterFrom, filterTo]);
+  const totalNet = rows.reduce((a,r)=>a+r.net_value,0);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Daily Sales</h2>
+    <p class="page-sub">Log each day's sales by store, category and employee.</p>
+    <div class="panel">
+      <form class="entry-form" id="saleForm">
+        <div class="field"><label>Date*</label><input required type="date" name="sale_date" value="${e.sale_date||todayStr()}"></div>
+        <div class="field"><label>Store*</label><select required name="store_id">${storeOptions(e.store_id)}</select></div>
+        <div class="field"><label>Employee</label><select name="employee_id">${employeeOptions(e.employee_id)}</select></div>
+        <div class="field"><label>Category</label><select name="category_id">${categoryOptions(e.category_id)}</select></div>
+        <div class="field"><label>Qty</label><input type="number" step="0.01" name="qty" value="${e.qty??''}"></div>
+        <div class="field"><label>MRP value</label><input type="number" step="0.01" name="mrp_value" value="${e.mrp_value??''}"></div>
+        <div class="field"><label>Discount</label><input type="number" step="0.01" name="discount" value="${e.discount??0}"></div>
+        <div class="field"><label>Net value*</label><input required type="number" step="0.01" name="net_value" value="${e.net_value??''}"></div>
+        <div class="field"><label>Remarks</label><input name="remarks" value="${esc(e.remarks)}"></div>
+        ${customFieldsFormHtml('daily_sales', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update entry':'Add entry'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.sale=null;render();">Cancel</button>`:''}
+      </form>
+      <div class="filters">
+        <div class="field"><label>From</label><input type="date" id="fFrom" value="${filterFrom}"></div>
+        <div class="field"><label>To</label><input type="date" id="fTo" value="${filterTo}"></div>
+        <button class="btn btn-outline" style="align-self:end" onclick="editing.salesFrom=document.getElementById('fFrom').value;editing.salesTo=document.getElementById('fTo').value;render();">Filter</button>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Store</th><th>Employee</th><th>Category</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Discount</th><th class="num">Net</th>${customFieldsTableHeaders('daily_sales')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${r.sale_date}</td><td>${esc(r.store_name)}</td><td>${esc(r.emp_name)||'—'}</td><td>${esc(r.cat_name)}</td>
+            <td class="num">${fmtN(r.qty,2)}</td><td class="num">${fmtN(r.mrp_value)}</td><td class="num">${fmtN(r.discount)}</td><td class="num">${fmtN(r.net_value)}</td>
+            ${customFieldsTableCells('daily_sales', r.id)}
+            <td><button class="rowlink" onclick='editing.sale=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('daily_sales',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="9" class="empty">No sales logged in this date range.</td></tr>`}
+        </tbody>
+        ${rows.length?`<tfoot><tr><td colspan="7" style="text-align:right;font-weight:600;">Total net</td><td class="num" style="font-weight:600;">${fmtN(totalNet)}</td><td></td></tr></tfoot>`:''}
+      </table>
+    </div>
+  `;
+  document.getElementById('saleForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const vals = [f.get('sale_date'), f.get('store_id'), f.get('employee_id')||null, f.get('category_id'),
+      Number(f.get('qty'))||0, Number(f.get('mrp_value'))||0, Number(f.get('discount'))||0, Number(f.get('net_value'))||0, f.get('remarks')];
+    let recId = e.id;
+    if(e.id){
+      run(`UPDATE daily_sales SET sale_date=?,store_id=?,employee_id=?,category_id=?,qty=?,mrp_value=?,discount=?,net_value=?,remarks=? WHERE id=?`,[...vals, e.id]);
+    } else {
+      run(`INSERT INTO daily_sales(sale_date,store_id,employee_id,category_id,qty,mrp_value,discount,net_value,remarks) VALUES (?,?,?,?,?,?,?,?,?)`, vals);
+      recId = newRecordId();
+    }
+    saveCustomFieldValues('daily_sales', recId, f);
+    editing.sale=null; render();
+  });
+}
+
+/* ============ DISPLAY STOCK / AUDITS ============ */
+function renderAudits(){
+  const e = editing.audit || {};
+  const filterFrom = editing.auditFrom || daysAgoStr(30), filterTo = editing.auditTo || todayStr();
+  const rows = q(`SELECT a.*, s.store_name, c.name cat_name FROM stock_audits a
+                  LEFT JOIN stores s ON s.id=a.store_id LEFT JOIN categories c ON c.id=a.category_id
+                  WHERE a.audit_date BETWEEN ? AND ? ORDER BY a.audit_date DESC, a.id DESC`,[filterFrom, filterTo]);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Display Stock &amp; Shrinkage</h2>
+    <p class="page-sub">Counter stock counts against system quantity, with shrinkage and damage logged per visit.</p>
+    <div class="panel">
+      <form class="entry-form" id="auditForm">
+        <div class="field"><label>Date*</label><input required type="date" name="audit_date" value="${e.audit_date||todayStr()}"></div>
+        <div class="field"><label>Store*</label><select required name="store_id">${storeOptions(e.store_id)}</select></div>
+        <div class="field"><label>Category</label><select name="category_id">${categoryOptions(e.category_id)}</select></div>
+        <div class="field"><label>System qty</label><input type="number" step="1" name="system_qty" value="${e.system_qty??''}"></div>
+        <div class="field"><label>Counted qty</label><input type="number" step="1" name="counted_qty" value="${e.counted_qty??''}"></div>
+        <div class="field"><label>Shrinkage qty</label><input type="number" step="1" name="shrinkage_qty" value="${e.shrinkage_qty??0}"></div>
+        <div class="field"><label>Damage qty</label><input type="number" step="1" name="damage_qty" value="${e.damage_qty??0}"></div>
+        <div class="field"><label>Counted by</label><input name="counted_by" value="${esc(e.counted_by)}"></div>
+        <div class="field"><label>Remarks</label><input name="remarks" value="${esc(e.remarks)}"></div>
+        ${customFieldsFormHtml('stock_audits', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update':'Add count'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.audit=null;render();">Cancel</button>`:''}
+      </form>
+      <div class="filters">
+        <div class="field"><label>From</label><input type="date" id="aFrom" value="${filterFrom}"></div>
+        <div class="field"><label>To</label><input type="date" id="aTo" value="${filterTo}"></div>
+        <button class="btn btn-outline" style="align-self:end" onclick="editing.auditFrom=document.getElementById('aFrom').value;editing.auditTo=document.getElementById('aTo').value;render();">Filter</button>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Store</th><th>Category</th><th class="num">System</th><th class="num">Counted</th><th class="num">Shrinkage</th><th class="num">Damage</th><th>By</th>${customFieldsTableHeaders('stock_audits')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${r.audit_date}</td><td>${esc(r.store_name)}</td><td>${esc(r.cat_name)}</td>
+            <td class="num">${fmtN(r.system_qty)}</td><td class="num">${fmtN(r.counted_qty)}</td>
+            <td class="num">${r.shrinkage_qty?`<span class="tag bad">${fmtN(r.shrinkage_qty)}</span>`:'—'}</td>
+            <td class="num">${r.damage_qty?`<span class="tag bad">${fmtN(r.damage_qty)}</span>`:'—'}</td>
+            <td>${esc(r.counted_by)}</td>
+            ${customFieldsTableCells('stock_audits', r.id)}
+            <td><button class="rowlink" onclick='editing.audit=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('stock_audits',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="9" class="empty">No stock counts logged in this range.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('auditForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const vals = [f.get('audit_date'), f.get('store_id'), f.get('category_id'),
+      Number(f.get('system_qty'))||0, Number(f.get('counted_qty'))||0, Number(f.get('shrinkage_qty'))||0,
+      Number(f.get('damage_qty'))||0, f.get('counted_by'), f.get('remarks')];
+    let recId = e.id;
+    if(e.id){
+      run(`UPDATE stock_audits SET audit_date=?,store_id=?,category_id=?,system_qty=?,counted_qty=?,shrinkage_qty=?,damage_qty=?,counted_by=?,remarks=? WHERE id=?`,[...vals, e.id]);
+    } else {
+      run(`INSERT INTO stock_audits(audit_date,store_id,category_id,system_qty,counted_qty,shrinkage_qty,damage_qty,counted_by,remarks) VALUES (?,?,?,?,?,?,?,?,?)`, vals);
+      recId = newRecordId();
+    }
+    saveCustomFieldValues('stock_audits', recId, f);
+    editing.audit=null; render();
+  });
+}
+
+/* ============ STAFFED VS UNSTAFFED VISITS ============ */
+function renderVisits(){
+  const e = editing.visit || {};
+  const filterFrom = editing.visitFrom || daysAgoStr(30), filterTo = editing.visitTo || todayStr();
+  const rows = q(`SELECT v.*, s.store_name, emp.name emp_name FROM counter_visits v
+                  LEFT JOIN stores s ON s.id=v.store_id LEFT JOIN employees emp ON emp.id=v.employee_id
+                  WHERE v.visit_date BETWEEN ? AND ? ORDER BY v.visit_date DESC, v.id DESC`,[filterFrom, filterTo]);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Staffed vs Unstaffed Counter Visits</h2>
+    <p class="page-sub">Log each store visit — mark whether the counter was staffed, so you can compare sales, shrinkage and damage side by side.</p>
+    <div class="panel">
+      <form class="entry-form" id="visitForm">
+        <div class="field"><label>Date*</label><input required type="date" name="visit_date" value="${e.visit_date||todayStr()}"></div>
+        <div class="field"><label>Store*</label><select required name="store_id">${storeOptions(e.store_id)}</select></div>
+        <div class="field chk"><label><input type="checkbox" name="staffed" ${e.staffed===0?'':'checked'} onchange="document.getElementById('visitEmpField').style.display=this.checked?'flex':'none'"> Staffed</label></div>
+        <div class="field" id="visitEmpField" style="display:${e.staffed===0?'none':'flex'}"><label>Employee</label><select name="employee_id">${employeeOptions(e.employee_id, e.store_id)}</select></div>
+        <div class="field"><label>Sales value</label><input type="number" step="0.01" name="sales_value" value="${e.sales_value??''}"></div>
+        <div class="field"><label>Qty sold</label><input type="number" step="1" name="qty_sold" value="${e.qty_sold??''}"></div>
+        <div class="field"><label>Shrinkage qty</label><input type="number" step="1" name="shrinkage_qty" value="${e.shrinkage_qty??0}"></div>
+        <div class="field"><label>Damage qty</label><input type="number" step="1" name="damage_qty" value="${e.damage_qty??0}"></div>
+        <div class="field"><label>Notes</label><input name="notes" value="${esc(e.notes)}"></div>
+        ${customFieldsFormHtml('counter_visits', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update visit':'Log visit'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.visit=null;render();">Cancel</button>`:''}
+      </form>
+      <div class="filters">
+        <div class="field"><label>From</label><input type="date" id="vFrom" value="${filterFrom}"></div>
+        <div class="field"><label>To</label><input type="date" id="vTo" value="${filterTo}"></div>
+        <button class="btn btn-outline" style="align-self:end" onclick="editing.visitFrom=document.getElementById('vFrom').value;editing.visitTo=document.getElementById('vTo').value;render();">Filter</button>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Store</th><th>Status</th><th>Employee</th><th class="num">Sales</th><th class="num">Qty</th><th class="num">Shrinkage</th><th class="num">Damage</th>${customFieldsTableHeaders('counter_visits')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${r.visit_date}</td><td>${esc(r.store_name)}</td>
+            <td><span class="tag ${r.staffed?'good':'bad'}">${r.staffed?'Staffed':'Unstaffed'}</span></td>
+            <td>${esc(r.emp_name)||'—'}</td>
+            <td class="num">${fmtN(r.sales_value)}</td><td class="num">${fmtN(r.qty_sold)}</td>
+            <td class="num">${fmtN(r.shrinkage_qty)}</td><td class="num">${fmtN(r.damage_qty)}</td>
+            ${customFieldsTableCells('counter_visits', r.id)}
+            <td><button class="rowlink" onclick='editing.visit=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('counter_visits',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="9" class="empty">No visits logged in this range.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('visitForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const staffed = f.get('staffed')?1:0;
+    const vals = [f.get('visit_date'), f.get('store_id'), staffed, staffed?(f.get('employee_id')||null):null,
+      Number(f.get('sales_value'))||0, Number(f.get('qty_sold'))||0, Number(f.get('shrinkage_qty'))||0, Number(f.get('damage_qty'))||0, f.get('notes')];
+    let recId = e.id;
+    if(e.id){
+      run(`UPDATE counter_visits SET visit_date=?,store_id=?,staffed=?,employee_id=?,sales_value=?,qty_sold=?,shrinkage_qty=?,damage_qty=?,notes=? WHERE id=?`,[...vals, e.id]);
+    } else {
+      run(`INSERT INTO counter_visits(visit_date,store_id,staffed,employee_id,sales_value,qty_sold,shrinkage_qty,damage_qty,notes) VALUES (?,?,?,?,?,?,?,?,?)`, vals);
+      recId = newRecordId();
+    }
+    saveCustomFieldValues('counter_visits', recId, f);
+    editing.visit=null; render();
+  });
+}
+
+/* ============ EMPLOYEE STATUS LOG ============ */
+function renderStatusLog(){
+  const e = editing.statuslog || {};
+  const rows = q(`SELECT l.*, emp.name emp_name FROM employee_status_log l LEFT JOIN employees emp ON emp.id=l.employee_id ORDER BY l.log_date DESC, l.id DESC LIMIT 200`);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Employee Status Log</h2>
+    <p class="page-sub">A dated history of status changes — leave, exits, transfers, warnings — per employee.</p>
+    <div class="panel">
+      <form class="entry-form" id="logForm">
+        <div class="field"><label>Date*</label><input required type="date" name="log_date" value="${e.log_date||todayStr()}"></div>
+        <div class="field"><label>Employee*</label><select required name="employee_id">${employeeOptions(e.employee_id)}</select></div>
+        <div class="field"><label>Attendance*</label>
+          <select required name="attendance">
+            ${[['P','P — Present'],['L','L — Leave'],['A','A — No update']].map(([v,lbl])=>`<option value="${v}" ${(e.attendance||'P')===v?'selected':''}>${lbl}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Status*</label>
+          <select required name="status">
+            ${['Active','On Leave','Warned','Transferred','Inactive','Exited'].map(s=>`<option ${e.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Notes</label><input name="notes" value="${esc(e.notes)}"></div>
+        ${customFieldsFormHtml('employee_status_log', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update entry':'Add log entry'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.statuslog=null;render();">Cancel</button>`:''}
+      </form>
+      <table>
+        <thead><tr><th>Date</th><th>Employee</th><th>Attendance</th><th>Status</th><th>Notes</th>${customFieldsTableHeaders('employee_status_log')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${r.log_date}</td><td>${esc(r.emp_name)}</td>
+            <td><span class="tag ${r.attendance==='P'?'good':(r.attendance==='L'?'neutral':'bad')}">${esc(r.attendance)||'—'}</span></td>
+            <td><span class="tag ${r.status==='Active'?'good':(r.status==='Exited'||r.status==='Warned'?'bad':'neutral')}">${esc(r.status)}</span></td>
+            <td>${esc(r.notes)}</td>
+            ${customFieldsTableCells('employee_status_log', r.id)}
+            <td><button class="rowlink" onclick='editing.statuslog=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('employee_status_log',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="6" class="empty">No status log entries yet.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('logForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const vals = [f.get('log_date'), f.get('employee_id'), f.get('status'), f.get('attendance'), f.get('notes')];
+    let recId = e.id;
+    if(e.id){
+      run(`UPDATE employee_status_log SET log_date=?,employee_id=?,status=?,attendance=?,notes=? WHERE id=?`,[...vals, e.id]);
+      // also mirror onto employee's current status
+      run(`UPDATE employees SET status=? WHERE id=?`,[f.get('status'), f.get('employee_id')]);
+    } else {
+      run(`INSERT INTO employee_status_log(log_date,employee_id,status,attendance,notes) VALUES (?,?,?,?,?)`, vals);
+      run(`UPDATE employees SET status=? WHERE id=?`,[f.get('status'), f.get('employee_id')]);
+      recId = newRecordId();
+    }
+    saveCustomFieldValues('employee_status_log', recId, f);
+    editing.statuslog=null; render();
+  });
+}
+
+/* ============ STORE CONTACTS ============ */
+function renderStoreContacts(){
+  const e = editing.storecontact || {};
+  const rows = q(`SELECT sc.*, s.store_name, s.store_code FROM store_contacts sc
+                  LEFT JOIN stores s ON s.id=sc.store_id ORDER BY s.store_name`);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Store Contacts</h2>
+    <p class="page-sub">Who to call at each store — the DM/APL or other point of contact.</p>
+    <div class="panel">
+      <form class="entry-form" id="contactForm">
+        <div class="field"><label>Store*</label><select required name="store_id">${storeOptions(e.store_id)}</select></div>
+        <div class="field"><label>Contact person name</label><input name="contact_name" value="${esc(e.contact_name)}"></div>
+        <div class="field"><label>Role</label><input name="contact_role" placeholder="DM / APL" value="${esc(e.contact_role)}"></div>
+        <div class="field"><label>Mobile number</label><input name="mobile" value="${esc(e.mobile)}"></div>
+        <div class="field"><label>Email ID</label><input type="email" name="email" value="${esc(e.email)}"></div>
+        <div class="field"><label>Address</label><textarea name="address">${esc(e.address)}</textarea></div>
+        <div class="field"><label>Note</label><input name="notes" value="${esc(e.notes)}"></div>
+        ${customFieldsFormHtml('store_contacts', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update contact':'Add contact'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.storecontact=null;render();">Cancel</button>`:''}
+      </form>
+      <table>
+        <thead><tr><th>Store</th><th>Code</th><th>Contact person</th><th>Role</th><th>Mobile</th><th>Email</th><th>Address</th><th>Note</th>${customFieldsTableHeaders('store_contacts')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${esc(r.store_name)||'—'}</td><td>${esc(r.store_code)||'—'}</td>
+            <td>${esc(r.contact_name)||'—'}</td><td>${esc(r.contact_role)||'—'}</td>
+            <td>${esc(r.mobile)||'—'}</td><td>${esc(r.email)||'—'}</td>
+            <td>${esc(r.address)||'—'}</td><td>${esc(r.notes)||'—'}</td>
+            ${customFieldsTableCells('store_contacts', r.id)}
+            <td><button class="rowlink" onclick='editing.storecontact=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('store_contacts',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="9" class="empty">No store contacts yet.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('contactForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const vals = [f.get('store_id'), f.get('contact_name'), f.get('contact_role'), f.get('mobile'), f.get('email'), f.get('address'), f.get('notes')];
+    let recId = e.id;
+    if(e.id){
+      run(`UPDATE store_contacts SET store_id=?,contact_name=?,contact_role=?,mobile=?,email=?,address=?,notes=? WHERE id=?`,[...vals, e.id]);
+    } else {
+      run(`INSERT INTO store_contacts(store_id,contact_name,contact_role,mobile,email,address,notes) VALUES (?,?,?,?,?,?,?)`, vals);
+      recId = newRecordId();
+    }
+    saveCustomFieldValues('store_contacts', recId, f);
+    editing.storecontact=null; render();
+  });
+}
+
+/* ============ WAREHOUSE ============ */
+function renderWarehouse(){
+  const e = editing.warehouse || {};
+  const search = editing.warehouseSearch || '';
+  const where = search ? `WHERE style_code LIKE ? OR ean_number LIKE ? OR category LIKE ? OR shop_no LIKE ?` : '';
+  const params = search ? Array(4).fill('%'+search+'%') : [];
+  const rows = q(`SELECT * FROM warehouse_items ${where} ORDER BY id DESC LIMIT 500`, params);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Warehouse</h2>
+    <p class="page-sub">Stock register by style/EAN — image, code, season, pricing, tax, and quantity details.</p>
+    <div class="panel">
+      <form class="entry-form" id="whForm" enctype="multipart/form-data">
+        <div class="field"><label>Shop No.</label><input name="shop_no" value="${esc(e.shop_no)}"></div>
+        <div class="field"><label>Group</label><input name="group_name" value="${esc(e.group_name)}"></div>
+        <div class="field"><label>Image</label><input type="file" id="whImageInput" accept="image/*"></div>
+        <div class="field"><label>Style code</label><input name="style_code" value="${esc(e.style_code)}"></div>
+        <div class="field"><label>EAN number</label><input name="ean_number" value="${esc(e.ean_number)}"></div>
+        <div class="field"><label>Season</label><input name="season" value="${esc(e.season)}"></div>
+        <div class="field"><label>MRP</label><input type="number" step="0.01" name="mrp" value="${e.mrp??''}"></div>
+        <div class="field"><label>HSN code</label><input name="hsn_code" value="${esc(e.hsn_code)}"></div>
+        <div class="field"><label>GST rate %</label><input type="number" step="0.01" name="gst_rate" value="${e.gst_rate??''}"></div>
+        <div class="field"><label>RRP</label><input type="number" step="0.01" name="rrp" value="${e.rrp??''}"></div>
+        <div class="field"><label>Qty</label><input type="number" step="1" name="qty" value="${e.qty??''}"></div>
+        <div class="field"><label>Category</label><input name="category" value="${esc(e.category)}"></div>
+        <div class="field"><label>Sub category</label><input name="sub_category" value="${esc(e.sub_category)}"></div>
+        <div class="field"><label>Size</label><input name="size" value="${esc(e.size)}"></div>
+        <div class="field"><label>Colour</label><input name="colour" value="${esc(e.colour)}"></div>
+        <div class="field"><label>Options</label><input name="options" value="${esc(e.options)}"></div>
+        <div class="field"><label>Working entry</label><input name="working_entry" value="${esc(e.working_entry)}"></div>
+        <div class="field"><label>Stock diff</label><input type="number" step="1" name="stock_diff" value="${e.stock_diff??''}"></div>
+        <div class="field"><label>Remarks</label><input name="remarks" value="${esc(e.remarks)}"></div>
+        ${customFieldsFormHtml('warehouse_items', e.id)}
+        <button class="btn btn-brass" type="submit">${e.id?'Update item':'Add item'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.warehouse=null;render();">Cancel</button>`:''}
+      </form>
+      <div class="filters">
+        <div class="field"><label>Search</label><input id="whSearch" placeholder="style code, EAN, category, shop no." value="${esc(search)}"></div>
+        <button class="btn btn-outline" style="align-self:end" onclick="editing.warehouseSearch=document.getElementById('whSearch').value;render();">Search</button>
+      </div>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>S.No</th><th>Img</th><th>Shop No.</th><th>Group</th><th>Style</th><th>EAN</th><th>Season</th>
+          <th class="num">MRP</th><th>HSN</th><th class="num">GST%</th><th class="num">RRP</th><th class="num">Qty</th>
+          <th>Category</th><th>Sub-cat</th><th>Size</th><th>Colour</th><th>Options</th><th>Working entry</th><th class="num">Stock diff</th><th>Remarks</th>
+          ${customFieldsTableHeaders('warehouse_items')}<th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map((r,i)=>`
+          <tr>
+            <td>${r.id}</td>
+            <td>${r.image_data?`<img src="${r.image_data}" style="width:34px;height:34px;object-fit:cover;border-radius:3px;">`:'—'}</td>
+            <td>${esc(r.shop_no)}</td><td>${esc(r.group_name)}</td><td>${esc(r.style_code)}</td><td>${esc(r.ean_number)}</td><td>${esc(r.season)}</td>
+            <td class="num">${r.mrp!=null?fmtN(r.mrp):'—'}</td><td>${esc(r.hsn_code)}</td><td class="num">${r.gst_rate!=null?fmtN(r.gst_rate,1):'—'}</td>
+            <td class="num">${r.rrp!=null?fmtN(r.rrp):'—'}</td><td class="num">${r.qty!=null?fmtN(r.qty):'—'}</td>
+            <td>${esc(r.category)}</td><td>${esc(r.sub_category)}</td><td>${esc(r.size)}</td><td>${esc(r.colour)}</td>
+            <td>${esc(r.options)}</td><td>${esc(r.working_entry)}</td><td class="num">${r.stock_diff!=null?fmtN(r.stock_diff):'—'}</td><td>${esc(r.remarks)}</td>
+            ${customFieldsTableCells('warehouse_items', r.id)}
+            <td><button class="rowlink" onclick='editing.warehouse=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('warehouse_items',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="21" class="empty">No warehouse items yet.</td></tr>`}
+        </tbody>
+      </table>
+      </div>
+      ${rows.length>=500?`<div class="hint">Showing the most recent 500 rows — use search to narrow down.</div>`:''}
+    </div>
+  `;
+  document.getElementById('whForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const imgFile = document.getElementById('whImageInput').files[0];
+    const vals = [f.get('shop_no'), f.get('group_name'), f.get('style_code'), f.get('ean_number'), f.get('season'),
+      f.get('mrp')===''?null:Number(f.get('mrp')), f.get('hsn_code'), f.get('gst_rate')===''?null:Number(f.get('gst_rate')),
+      f.get('rrp')===''?null:Number(f.get('rrp')), f.get('qty')===''?null:Number(f.get('qty')), f.get('remarks'),
+      f.get('category'), f.get('sub_category'), f.get('size'), f.get('colour'), f.get('options'), f.get('working_entry'),
+      f.get('stock_diff')===''?null:Number(f.get('stock_diff'))];
+    function saveWithImage(imageData){
+      let recId = e.id;
+      if(e.id){
+        run(`UPDATE warehouse_items SET shop_no=?,group_name=?,style_code=?,ean_number=?,season=?,mrp=?,hsn_code=?,gst_rate=?,rrp=?,qty=?,remarks=?,category=?,sub_category=?,size=?,colour=?,options=?,working_entry=?,stock_diff=?${imageData!==undefined?',image_data=?':''} WHERE id=?`,
+          imageData!==undefined ? [...vals, imageData, e.id] : [...vals, e.id]);
+      } else {
+        run(`INSERT INTO warehouse_items(shop_no,group_name,style_code,ean_number,season,mrp,hsn_code,gst_rate,rrp,qty,remarks,category,sub_category,size,colour,options,working_entry,stock_diff,image_data) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [...vals, imageData||null]);
+        recId = newRecordId();
+      }
+      saveCustomFieldValues('warehouse_items', recId, f);
+      editing.warehouse=null; render();
+    }
+    if(imgFile){
+      const reader = new FileReader();
+      reader.onload = function(ev2){ saveWithImage(ev2.target.result); };
+      reader.readAsDataURL(imgFile);
+    } else {
+      saveWithImage(e.id ? undefined : null);
+    }
+  });
+}
+
+/* ============ SALARY SHEET ============ */
+const SALARY_FIELDS = [
+  {section:'Employee & Store'},
+  {key:'region', label:'Region', type:'text'},
+  {key:'position', label:'Position', type:'text'},
+  {key:'sale', label:'Sale', type:'text'},
+  {key:'store_code', label:'Store Code', type:'text'},
+  {key:'city_name', label:'City Name', type:'text'},
+  {key:'store_name_text', label:'Store Name', type:'text'},
+  {key:'employee_name_text', label:'Employee Name', type:'text'},
+  {key:'mobile_number', label:'Mobile Number', type:'text'},
+  {key:'employee_count', label:'Employee Count', type:'number'},
+  {key:'roll_type', label:'ON Roll & OFF Roll', type:'text'},
+  {key:'employment_status', label:'Employment status', type:'text'},
+  {key:'doj', label:'Date of Joining/Re-Joining', type:'date'},
+  {key:'doe', label:'Date of Exit', type:'date'},
+  {key:'doj_doe_status', label:'DOJ/DOE Status', type:'text'},
+  {section:'Attendance & Pay'},
+  {key:'salary', label:'Salary', type:'number'},
+  {key:'lop', label:'LOP', type:'number'},
+  {key:'ot_days', label:'OT Days', type:'number'},
+  {key:'pay_days', label:'Pay Days', type:'number'},
+  {key:'ot_amount', label:'OT', type:'number'},
+  {key:'big_bills', label:'Big Bills', type:'number'},
+  {key:'incentives', label:'Incentives/On sale', type:'number'},
+  {key:'conveyance_expenses', label:'Conv./Expenses/arrear', type:'number'},
+  {key:'total_reimbursements', label:'Total reimbursements', type:'number'},
+  {section:'Earnings'},
+  {key:'basic', label:'BASIC', type:'number'},
+  {key:'da', label:'DA', type:'number'},
+  {key:'hra', label:'HRA', type:'number'},
+  {key:'earned_salary', label:'EARNED SALARY', type:'number'},
+  {section:'Deductions'},
+  {key:'pf_basic', label:'PF Basic', type:'number'},
+  {key:'pf_employee_cont', label:'PF Employee Cont', type:'number'},
+  {key:'p_tax', label:'P.TAX', type:'number'},
+  {key:'sal_adv_deductions', label:'SAL ADV/LOAN/Other deductions', type:'number'},
+  {key:'tds', label:'TDS', type:'number'},
+  {key:'total_deductions', label:'Total Deductions', type:'number'},
+  {key:'take_home_salary', label:'Take Home Salary', type:'number'},
+  {section:'Employer Contribution & CTC'},
+  {key:'esi_empr', label:'ESI EMPR', type:'number'},
+  {key:'epf_empr', label:'EPF EMPR', type:'number'},
+  {key:'ctc', label:'CTC', type:'number'},
+  {section:'Bank Details'},
+  {key:'payment_mode', label:'Payment Mode', type:'text'},
+  {key:'bank_name', label:'Bank Name', type:'text'},
+  {key:'account_holder_name', label:'Account Holder Name', type:'text'},
+  {key:'account_no', label:'Account No.', type:'text'},
+  {key:'ifsc', label:'IFSC', type:'text'},
+  {key:'branch', label:'Branch', type:'text'},
+];
+const SALARY_KEYS = SALARY_FIELDS.filter(f=>f.key).map(f=>f.key);
+function salaryFieldInput(f, value){
+  const val = value===undefined||value===null ? '' : value;
+  if(f.type==='number') return `<div class="field"><label>${f.label}</label><input type="number" step="0.01" name="${f.key}" value="${esc(val)}"></div>`;
+  if(f.type==='date') return `<div class="field"><label>${f.label}</label><input type="date" name="${f.key}" value="${esc(val)}"></div>`;
+  return `<div class="field"><label>${f.label}</label><input name="${f.key}" value="${esc(val)}"></div>`;
+}
+function renderSalarySheet(){
+  const e = editing.salaryrow || {};
+  const months = q('SELECT DISTINCT pay_month FROM salary_sheet ORDER BY pay_month DESC');
+  const filterMonth = editing.salaryMonth || (months[0] ? months[0].pay_month : '');
+  const rows = filterMonth ? q('SELECT * FROM salary_sheet WHERE pay_month=? ORDER BY employee_name_text', [filterMonth]) : [];
+  const totalTakeHome = rows.reduce((a,r)=>a+(r.take_home_salary||0),0);
+  const totalCtc = rows.reduce((a,r)=>a+(r.ctc||0),0);
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Salary Sheet</h2>
+    <p class="page-sub">Monthly payroll register. Pick a month to add or review that month's rows — click Edit on any row to see and change its full record.</p>
+    <div class="panel">
+      <form class="entry-form" id="salForm">
+        <div class="field"><label>Pay month*</label><input required type="month" name="pay_month" value="${esc(e.pay_month)||filterMonth||''}"></div>
+        ${SALARY_FIELDS.map(f=>f.section?`<div class="field" style="flex-basis:100%;font-weight:700;color:var(--brass);margin-top:6px;">${esc(f.section)}</div>`:salaryFieldInput(f, e[f.key])).join('')}
+        <button class="btn btn-brass" type="submit">${e.id?'Update row':'Add row'}</button>
+        ${e.id?`<button class="btn btn-outline" type="button" onclick="editing.salaryrow=null;render();">Cancel</button>`:''}
+      </form>
+      <div class="filters">
+        <div class="field"><label>Month</label>
+          <select onchange="editing.salaryMonth=this.value;render();">
+            ${months.length?months.map(m=>`<option value="${m.pay_month}" ${m.pay_month===filterMonth?'selected':''}>${m.pay_month}</option>`).join(''):'<option value="">No months yet</option>'}
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Employee</th><th>Store</th><th>Code</th><th>Position</th><th>Status</th>
+          <th class="num">Pay days</th><th class="num">Salary</th><th class="num">Take home</th><th class="num">CTC</th>
+          <th>Payment mode</th><th>Bank</th><th>Account No.</th><th></th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr>
+            <td>${esc(r.employee_name_text)||'—'}</td><td>${esc(r.store_name_text)||'—'}</td><td>${esc(r.store_code)||'—'}</td>
+            <td>${esc(r.position)||'—'}</td><td>${esc(r.employment_status)||'—'}</td>
+            <td class="num">${r.pay_days!=null?fmtN(r.pay_days,1):'—'}</td>
+            <td class="num">${r.salary!=null?fmtN(r.salary):'—'}</td>
+            <td class="num">${r.take_home_salary!=null?fmtN(r.take_home_salary):'—'}</td>
+            <td class="num">${r.ctc!=null?fmtN(r.ctc):'—'}</td>
+            <td>${esc(r.payment_mode)||'—'}</td><td>${esc(r.bank_name)||'—'}</td><td>${esc(r.account_no)||'—'}</td>
+            <td><button class="rowlink" onclick='editing.salaryrow=${rowAttr(r)};render();'>Edit</button>
+                <button class="rowlink danger" onclick="deleteRow('salary_sheet',${r.id})">Delete</button></td>
+          </tr>`).join(''):`<tr><td colspan="13" class="empty">No rows for this month yet.</td></tr>`}
+        </tbody>
+        ${rows.length?`<tfoot><tr><td colspan="7" style="text-align:right;font-weight:600;">Totals</td>
+          <td class="num" style="font-weight:600;">${fmtN(totalTakeHome)}</td><td class="num" style="font-weight:600;">${fmtN(totalCtc)}</td>
+          <td colspan="4"></td></tr></tfoot>`:''}
+      </table>
+      </div>
+      <p class="hint">The table shows key columns for readability — click Edit to see and change every field on a row.</p>
+    </div>
+  `;
+  document.getElementById('salForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const vals = SALARY_KEYS.map(k=>{
+      const field = SALARY_FIELDS.find(sf=>sf.key===k);
+      const raw = f.get(k);
+      if(field.type==='number') return raw===''?null:Number(raw);
+      return raw||'';
+    });
+    if(e.id){
+      run(`UPDATE salary_sheet SET pay_month=?,${SALARY_KEYS.map(k=>k+'=?').join(',')} WHERE id=?`, [f.get('pay_month'), ...vals, e.id]);
+    } else {
+      run(`INSERT INTO salary_sheet(pay_month,${SALARY_KEYS.join(',')}) VALUES (?,${SALARY_KEYS.map(()=>'?').join(',')})`, [f.get('pay_month'), ...vals]);
+    }
+    editing.salaryrow=null; editing.salaryMonth=f.get('pay_month'); render();
+  });
+}
+
+/* ============ STOCK ON HAND (bulk-imported snapshots) ============ */
+function renderSoh(){
+  const dates = q(`SELECT DISTINCT snapshot_date FROM soh_snapshot ORDER BY snapshot_date DESC`);
+  const f = editing.soh || {};
+  const asOf = f.date || (dates[0] ? dates[0].snapshot_date : null);
+  const storeFilter = f.store_id || '';
+  const search = f.search || '';
+
+  let rows = [];
+  let totalQty = 0, distinctStores = 0, distinctItems = 0;
+  if(asOf){
+    const where = ['snapshot_date=?']; const params=[asOf];
+    if(storeFilter){ where.push('store_id=?'); params.push(storeFilter); }
+    if(search){ where.push('(item_desc LIKE ? OR item_code LIKE ?)'); params.push('%'+search+'%','%'+search+'%'); }
+    rows = q(`SELECT sv.*, s.store_name, c.name cat_name FROM soh_snapshot sv
+              LEFT JOIN stores s ON s.id=sv.store_id LEFT JOIN categories c ON c.id=sv.category_id
+              WHERE ${where.join(' AND ')} ORDER BY sv.id LIMIT 500`, params);
+    const totals = q(`SELECT COALESCE(SUM(soh_qty),0) t, COUNT(DISTINCT store_id) s, COUNT(*) i FROM soh_snapshot WHERE ${where.join(' AND ')}`, params)[0];
+    totalQty = totals.t; distinctStores = totals.s; distinctItems = totals.i;
+  }
+
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Stock on Hand</h2>
+    <p class="page-sub">Read-only view of bulk-imported stock snapshots. Use the Bulk Import tab to load a new snapshot.</p>
+    ${!dates.length ? `<div class="banner"><b>No stock snapshot loaded yet.</b>Go to Bulk Import and load your SOH export to see it here.</div>` : `
+    <div class="grid-kpi">
+      <div class="kpi"><div class="label">Snapshot date</div><div class="value" style="font-size:16px;">${asOf}</div></div>
+      <div class="kpi"><div class="label">Total SOH qty (filtered)</div><div class="value">${fmtN(totalQty)}</div></div>
+      <div class="kpi"><div class="label">Stores covered</div><div class="value">${distinctStores}</div></div>
+      <div class="kpi"><div class="label">Line items (filtered)</div><div class="value">${fmtN(distinctItems)}</div></div>
+    </div>
+    <div class="panel">
+      <div class="filters">
+        <div class="field"><label>Snapshot date</label>
+          <select onchange="editing.soh=Object.assign({},editing.soh,{date:this.value});render();">
+            ${dates.map(d=>`<option value="${d.snapshot_date}" ${d.snapshot_date===asOf?'selected':''}>${d.snapshot_date}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Store</label>
+          <select onchange="editing.soh=Object.assign({},editing.soh,{store_id:this.value});render();">
+            <option value="">All stores</option>${storeOptions(storeFilter)}
+          </select>
+        </div>
+        <div class="field"><label>Search item</label><input id="sohSearch" value="${esc(search)}" placeholder="code or description" onkeyup="if(event.key==='Enter'){editing.soh=Object.assign({},editing.soh,{search:this.value});render();}"></div>
+        <button class="btn btn-outline" style="align-self:end" onclick="editing.soh=Object.assign({},editing.soh,{search:document.getElementById('sohSearch').value});render();">Search</button>
+      </div>
+      <table>
+        <thead><tr><th>Store</th><th>Category</th><th>Item code</th><th>Description</th><th class="num">SOH qty</th><th class="num">MRP</th></tr></thead>
+        <tbody>
+        ${rows.length?rows.map(r=>`
+          <tr><td>${esc(r.store_name)||'—'}</td><td>${esc(r.cat_name)||'—'}</td><td>${esc(r.item_code)}</td><td>${esc(r.item_desc)}</td>
+          <td class="num">${fmtN(r.soh_qty)}</td><td class="num">${fmtN(r.mrp)}</td></tr>`).join(''):`<tr><td colspan="6" class="empty">No rows match this filter.</td></tr>`}
+        </tbody>
+      </table>
+      ${distinctItems>500?`<div class="hint">Showing 500 of ${fmtN(distinctItems)} matching rows — narrow the store or search filter to see more.</div>`:''}
+    </div>
+    `}
+  `;
+}
+
+/* ============ BULK IMPORT ============ */
+const IMPORT_TARGETS = {
+  sales: {
+    label: 'Daily Sales', table: 'daily_sales',
+    fields: [
+      {key:'sale_date', label:'Sale date', required:true, kw:['billing date','invoice date','sale date','rundate','date']},
+      {key:'store_name', label:'Store name', required:true, kw:['store_name','store name']},
+      {key:'employee_name', label:'Employee name', required:false, kw:['emp name','employee','lead_name']},
+      {key:'category', label:'Category', required:false, kw:['category','sub category','class_desc','subclass_desc']},
+      {key:'qty', label:'Quantity', required:false, kw:['quantity','qty']},
+      {key:'mrp_value', label:'MRP value', required:false, kw:['mrp value','unit_mrp','mrp']},
+      {key:'discount', label:'Discount', required:false, kw:['discount']},
+      {key:'net_value', label:'Net value', required:true, kw:['not','net value','rrp','net']},
+      {key:'remarks', label:'Remarks', required:false, kw:['remarks','notes']},
+    ]
+  },
+  soh: {
+    label: 'Stock on Hand', table: 'soh_snapshot',
+    fields: [
+      {key:'store_name', label:'Store name', required:true, kw:['store_name','store name']},
+      {key:'category', label:'Category', required:false, kw:['category','class_desc','subclass_desc']},
+      {key:'item_code', label:'Item code', required:false, kw:['ean','ean code','ean_id','article','item']},
+      {key:'item_desc', label:'Item description', required:false, kw:['item_description','item description','style_desc']},
+      {key:'soh_qty', label:'SOH quantity', required:true, kw:['soh_qty','soh quantity','total_qty','stock','quantity','qty']},
+      {key:'mrp', label:'MRP', required:false, kw:['unit_mrp','mrp']},
+    ]
+  },
+  employees: {
+    label: 'Employees', table: 'employees',
+    fields: [
+      {key:'name', label:'Employee name', required:true, kw:['name','emp name','employee']},
+      {key:'store_name', label:'Store name', required:false, kw:['store_name','store name']},
+      {key:'designation', label:'Designation', required:false, kw:['designation','role']},
+      {key:'status', label:'Status', required:false, kw:['status']},
+    ]
+  },
+  stores: {
+    label: 'Stores', table: 'stores',
+    fields: [
+      {key:'store_name', label:'Store name', required:true, kw:['store_name','store name']},
+      {key:'store_code', label:'Store code', required:false, kw:['store_code','store code','loc_num','site']},
+      {key:'area_name', label:'Area', required:false, kw:['area_name','area']},
+      {key:'region_name', label:'Region', required:false, kw:['region_name','region']},
+      {key:'district_name', label:'District', required:false, kw:['district_name','district']},
+      {key:'store_type', label:'Store type', required:false, kw:['store_type','store type','site_type']},
+    ]
+  },
+  warehouse: {
+    label: 'Warehouse', table: 'warehouse_items',
+    fields: [
+      {key:'shop_no', label:'Shop No.', required:false, kw:['shop-no','shop no','shop_no']},
+      {key:'group_name', label:'Group', required:false, kw:['group']},
+      {key:'style_code', label:'Style code', required:false, kw:['style code','style_code','article']},
+      {key:'ean_number', label:'EAN Number', required:false, kw:['ean number','ean_number','ean','ean_id']},
+      {key:'season', label:'Season', required:false, kw:['season']},
+      {key:'mrp', label:'MRP', required:false, kw:['mrp']},
+      {key:'hsn_code', label:'HSN code', required:false, kw:['hsn code','hsn_code','hsn']},
+      {key:'gst_rate', label:'GST rate', required:false, kw:['gst rates','gst rate','gst']},
+      {key:'rrp', label:'RRP', required:false, kw:['rrp']},
+      {key:'qty', label:'Qty', required:false, kw:['qty','quantity']},
+      {key:'category', label:'Category', required:false, kw:['category']},
+      {key:'sub_category', label:'Sub Category', required:false, kw:['sub category','sub_category','subcategory']},
+      {key:'size', label:'Size', required:false, kw:['size']},
+      {key:'colour', label:'Colour', required:false, kw:['colour','color']},
+      {key:'options', label:'Options', required:false, kw:['options']},
+      {key:'working_entry', label:'Working entry', required:false, kw:['working entry','working_entry']},
+      {key:'stock_diff', label:'Stock diff', required:false, kw:['stock diff','stock_diff']},
+      {key:'remarks', label:'Remarks', required:false, kw:['remarks']},
+    ]
+  },
+  salary: {
+    label: 'Salary Sheet', table: 'salary_sheet',
+    fields: [
+      {key:'employee_name_text', label:'Employee Name', required:true, kw:['employee name','employee_name']},
+      {key:'region', label:'Region', required:false, kw:['region']},
+      {key:'position', label:'Position', required:false, kw:['position']},
+      {key:'sale', label:'Sale', required:false, kw:['sale']},
+      {key:'store_code', label:'Store Code', required:false, kw:['store code','store_code']},
+      {key:'city_name', label:'City Name', required:false, kw:['city name','city_name','city']},
+      {key:'store_name_text', label:'Store Name', required:false, kw:['store name','store_name']},
+      {key:'mobile_number', label:'Mobile Number', required:false, kw:['mobile number','mobile_number','mobile']},
+      {key:'employee_count', label:'Employee Count', required:false, kw:['employee count']},
+      {key:'roll_type', label:'ON Roll & OFF Roll', required:false, kw:['on roll & off roll','roll']},
+      {key:'employment_status', label:'Employment status', required:false, kw:['employement status','employment status']},
+      {key:'doj', label:'Date of Joining/Re-Joining', required:false, kw:['date of joining','doj']},
+      {key:'doe', label:'Date of Exit', required:false, kw:['date of exit','doe']},
+      {key:'doj_doe_status', label:'DOJ/DOE Status', required:false, kw:['doj/doe status','doj doe status']},
+      {key:'salary', label:'Salary', required:false, kw:['salary']},
+      {key:'lop', label:'LOP', required:false, kw:['lop']},
+      {key:'ot_days', label:'OT Days', required:false, kw:['ot days']},
+      {key:'pay_days', label:'Pay Days', required:false, kw:['pay days']},
+      {key:'ot_amount', label:'OT', required:false, kw:['ot']},
+      {key:'big_bills', label:'Big Bills', required:false, kw:['big bills']},
+      {key:'incentives', label:'Incentives/On sale', required:false, kw:['incentives/on sale','incentives']},
+      {key:'conveyance_expenses', label:'Conv./Expenses/arrear', required:false, kw:['conv./expenses/arrear','conveyance']},
+      {key:'total_reimbursements', label:'Total reimbursements', required:false, kw:['total reimbursements']},
+      {key:'basic', label:'BASIC', required:false, kw:['basic']},
+      {key:'da', label:'DA', required:false, kw:['da']},
+      {key:'hra', label:'HRA', required:false, kw:['hra']},
+      {key:'earned_salary', label:'EARNED SALARY', required:false, kw:['earned salary']},
+      {key:'pf_basic', label:'PF Basic', required:false, kw:['pf basic']},
+      {key:'pf_employee_cont', label:'PF Employee Cont', required:false, kw:['pf employee cont']},
+      {key:'p_tax', label:'P.TAX', required:false, kw:['p.tax','ptax']},
+      {key:'sal_adv_deductions', label:'SAL ADV/LOAN/Other deductions', required:false, kw:['sal adv/loan/other deductions','sal adv']},
+      {key:'tds', label:'TDS', required:false, kw:['tds']},
+      {key:'total_deductions', label:'Total Deductions', required:false, kw:['total deductions']},
+      {key:'take_home_salary', label:'Take Home Salary', required:false, kw:['take home salary']},
+      {key:'esi_empr', label:'ESI EMPR', required:false, kw:['esi empr']},
+      {key:'epf_empr', label:'EPF EMPR', required:false, kw:['epf empr']},
+      {key:'ctc', label:'CTC', required:false, kw:['ctc']},
+      {key:'payment_mode', label:'Payment Mode', required:false, kw:['payment mode']},
+      {key:'bank_name', label:'Bank Name', required:false, kw:['bank name']},
+      {key:'account_holder_name', label:'Account Holder Name', required:false, kw:['account holder name']},
+      {key:'account_no', label:'Account No.', required:false, kw:['account no.','account no','account number']},
+      {key:'ifsc', label:'IFSC', required:false, kw:['ifsc']},
+      {key:'branch', label:'Branch', required:false, kw:['branch']},
+      {key:'remarks', label:'Remarks', required:false, kw:['remarks']},
+    ]
+  }
+};
+
+function parseDate(val){
+  if(val===undefined || val===null || val==='') return null;
+  if(val instanceof Date && !isNaN(val)) return val.toISOString().slice(0,10);
+  if(typeof val === 'number'){
+    try{ const d = XLSX.SSF.parse_date_code(val); if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; }catch(e){}
+  }
+  const s = String(val).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return null;
+}
+function guessColumn(headers, kws){
+  const low = headers.map(h=>String(h||'').toLowerCase().trim());
+  for(const kw of kws){
+    const idx = low.findIndex(h=>h===kw);
+    if(idx>=0) return idx;
+  }
+  for(const kw of kws){
+    const idx = low.findIndex(h=>h.includes(kw));
+    if(idx>=0) return idx;
+  }
+  return -1;
+}
+const lookupCaches = { stores:new Map(), employees:new Map(), categories:new Map() };
+function primeCaches(){
+  lookupCaches.stores.clear(); lookupCaches.employees.clear(); lookupCaches.categories.clear();
+  q('SELECT id,store_name FROM stores').forEach(r=>lookupCaches.stores.set(r.store_name.toLowerCase().trim(), r.id));
+  q('SELECT id,name FROM employees').forEach(r=>lookupCaches.employees.set(r.name.toLowerCase().trim(), r.id));
+  q('SELECT id,name FROM categories').forEach(r=>lookupCaches.categories.set(r.name.toLowerCase().trim(), r.id));
+}
+function lookupOrCreate(cache, table, col, value){
+  if(value===undefined||value===null) return null;
+  const name = String(value).trim();
+  if(!name) return null;
+  const key = name.toLowerCase();
+  if(cache.has(key)) return cache.get(key);
+  run(`INSERT INTO ${table}(${col}) VALUES (?)`, [name]);
+  const id = q('SELECT last_insert_rowid() id')[0].id;
+  cache.set(key, id);
+  return id;
+}
+
+function renderImport(){
+  const st = editing.import || (editing.import = { target:'sales', asOfDate: todayStr(), replace:true });
+  const targetDef = IMPORT_TARGETS[st.target];
+
+  let previewHtml = '';
+  let mappingHtml = '';
+  if(st.headers){
+    const previewRows = st.dataRows.slice(0,6);
+    previewHtml = `
+      <div class="panel">
+        <h3>Preview — ${st.rowCount} data rows detected (sheet "${esc(st.sheetName)}", header row ${st.headerRowIdx+1})</h3>
+        <div style="overflow-x:auto;"><table><thead><tr>${st.headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody>${previewRows.map(r=>`<tr>${st.headers.map((h,i)=>`<td>${esc(r[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      </div>`;
+
+    mappingHtml = `
+      <div class="panel">
+        <h3>Map columns</h3>
+        <form class="entry-form" id="mapForm" style="border-bottom:none;padding-bottom:0;">
+        ${targetDef.fields.map(f=>{
+          const sel = st.mapping && (st.mapping[f.key]!==undefined) ? st.mapping[f.key] : guessColumn(st.headers, f.kw);
+          return `<div class="field"><label>${f.label}${f.required?' *':''}</label>
+            <select name="${f.key}">
+              <option value="-1">— not in file —</option>
+              ${st.headers.map((h,i)=>`<option value="${i}" ${sel===i?'selected':''}>${esc(h)}</option>`).join('')}
+            </select></div>`;
+        }).join('')}
+        </form>
+        ${st.target==='soh' ? `
+          <div class="entry-form" style="border-bottom:none;">
+            <div class="field"><label>Stock as-of date *</label><input type="date" id="asOfDate" value="${st.asOfDate}"></div>
+            <div class="field chk"><label><input type="checkbox" id="replaceChk" ${st.replace?'checked':''}> Replace any existing snapshot for this date</label></div>
+          </div>` : ''}
+        ${st.target==='sales' ? `
+          <div class="entry-form" style="border-bottom:none;">
+            <div class="field chk"><label><input type="checkbox" id="replaceChk" ${st.replace?'checked':''}> Replace existing sales that fall in this file's date range</label></div>
+          </div>` : ''}
+        ${st.target==='salary' ? `
+          <div class="entry-form" style="border-bottom:none;">
+            <div class="field"><label>Pay month *</label><input type="month" id="payMonth" value="${st.payMonth||''}"></div>
+            <div class="field chk"><label><input type="checkbox" id="replaceChk" ${st.replace?'checked':''}> Replace any existing rows for this month</label></div>
+          </div>` : ''}
+        <button class="btn btn-brass" onclick="startImport()">Import ${st.rowCount} rows</button>
+        <div id="importProgress" class="hint"></div>
+      </div>`;
+  }
+
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Bulk Import</h2>
+    <p class="page-sub">Load a CSV or Excel export (your ERP sale/SOH report, or any spreadsheet) and map its columns once — the app remembers nothing between files, so re-check the mapping each time your export format changes.</p>
+    <div class="panel">
+      <h3>1. What are you importing?</h3>
+      <div class="entry-form" style="border-bottom:none;padding-bottom:0;">
+        <div class="field">
+          <label>Target</label>
+          <select onchange="editing.import={target:this.value, asOfDate: todayStr(), replace:true};render();">
+            ${Object.keys(IMPORT_TARGETS).map(k=>`<option value="${k}" ${st.target===k?'selected':''}>${IMPORT_TARGETS[k].label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>File (.xlsx, .xls or .csv)</label>
+          <input type="file" id="importFile" accept=".xlsx,.xls,.csv">
+        </div>
+        ${st.sheetNames && st.sheetNames.length>1 ? `
+        <div class="field"><label>Sheet</label>
+          <select onchange="pickSheet(this.value)">${st.sheetNames.map(s=>`<option ${s===st.sheetName?'selected':''}>${esc(s)}</option>`).join('')}</select>
+        </div>`:''}
+        ${st.headers ? `
+        <div class="field"><label>Header row #</label><input type="number" min="1" value="${st.headerRowIdx+1}" onchange="setHeaderRow(this.value)" style="width:70px;"></div>
+        `:''}
+      </div>
+      <p class="hint">Not sure your file will map cleanly? Download a blank template with the exact column names this app recognises automatically:
+        <button class="rowlink" onclick="downloadTemplate('${st.target}')">Download ${targetDef.label} template</button>
+      </p>
+    </div>
+    ${previewHtml}
+    ${mappingHtml}
+    ${renderImportHistory()}
+  `;
+  document.getElementById('importFile').addEventListener('change', handleImportFile);
+}
+
+function renderImportHistory(){
+  const logs = q('SELECT * FROM upload_logs ORDER BY uploaded_at DESC LIMIT 15');
+  if(!logs.length) return '';
+  return `
+    <div class="panel">
+      <h3>Import history</h3>
+      <table>
+        <thead><tr><th>File</th><th>Target</th><th class="num">Added</th><th class="num">Skipped</th><th>When</th></tr></thead>
+        <tbody>
+        ${logs.map(l=>`<tr><td>${esc(l.file_name)}</td><td>${esc(IMPORT_TARGETS[l.target]?IMPORT_TARGETS[l.target].label:l.target)}</td>
+          <td class="num">${fmtN(l.rows_inserted)}</td><td class="num">${fmtN(l.rows_skipped)}</td>
+          <td>${esc((l.uploaded_at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('')}
+        </tbody>
+      </table>
+      <p class="hint">Re-uploading a file already listed here will prompt a duplicate warning first.</p>
+    </div>`;
+}
+
+function handleImportFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const data = new Uint8Array(ev.target.result);
+      const hash = fingerprintBytes(data);
+      const dup = q('SELECT * FROM upload_logs WHERE file_hash=?', [hash]);
+      if(dup.length){
+        const d = dup[0];
+        const proceed = confirm(`This exact file already appears to have been imported on ${d.uploaded_at.slice(0,16).replace('T',' ')} (${d.rows_inserted} rows added, into ${d.target}).\n\nImport it again anyway?`);
+        if(!proceed){ e.target.value=''; return; }
+      }
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      editing.import.workbook = wb;
+      editing.import.fileName = file.name;
+      editing.import.fileSize = file.size;
+      editing.import.fileHash = hash;
+      editing.import.sheetNames = wb.SheetNames;
+      pickSheet(wb.SheetNames[0]);
+    }catch(err){
+      alert('Could not read this file: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function pickSheet(name){
+  const st = editing.import;
+  st.sheetName = name;
+  const ws = st.workbook.Sheets[name];
+  const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:true});
+  // auto-detect header row: first row with 3+ non-empty cells
+  let headerRowIdx = raw.findIndex(r => r.filter(c=>String(c).trim()!=='').length >= 3);
+  if(headerRowIdx < 0) headerRowIdx = 0;
+  st.headerRowIdx = headerRowIdx;
+  st.allRows = raw;
+  applyHeaderRow();
+}
+function setHeaderRow(n){
+  editing.import.headerRowIdx = Math.max(0, Number(n)-1);
+  applyHeaderRow();
+}
+function applyHeaderRow(){
+  const st = editing.import;
+  st.headers = st.allRows[st.headerRowIdx].map(h=>String(h).trim() || '(blank)');
+  st.dataRows = st.allRows.slice(st.headerRowIdx+1).filter(r => r.some(c=>String(c).trim()!==''));
+  st.rowCount = st.dataRows.length;
+  st.mapping = null;
+  render();
+}
+
+function startImport(){
+  const st = editing.import;
+  const targetDef = IMPORT_TARGETS[st.target];
+  const mapForm = document.getElementById('mapForm');
+  const fd = new FormData(mapForm);
+  const mapping = {};
+  targetDef.fields.forEach(f => mapping[f.key] = Number(fd.get(f.key)));
+  st.mapping = mapping;
+
+  const missingRequired = targetDef.fields.filter(f=>f.required && mapping[f.key]===-1);
+  if(missingRequired.length){
+    alert('Please map required field(s): ' + missingRequired.map(f=>f.label).join(', '));
+    return;
+  }
+  const asOfDate = document.getElementById('asOfDate') ? document.getElementById('asOfDate').value : null;
+  if(st.target==='soh' && !asOfDate){ alert('Please set the stock as-of date.'); return; }
+  const payMonth = document.getElementById('payMonth') ? document.getElementById('payMonth').value : null;
+  if(st.target==='salary' && !payMonth){ alert('Please set the pay month.'); return; }
+  const replace = document.getElementById('replaceChk') ? document.getElementById('replaceChk').checked : false;
+
+  primeCaches();
+  const progressEl = document.getElementById('importProgress');
+  const rows = st.dataRows;
+  let inserted = 0, skipped = 0;
+  const errors = [];
+
+  db.exec('BEGIN');
+
+  if(st.target==='soh' && replace){
+    run('DELETE FROM soh_snapshot WHERE snapshot_date=?', [asOfDate]);
+  }
+  if(st.target==='sales' && replace){
+    let minD=null, maxD=null;
+    rows.forEach(r=>{ const d=parseDate(r[mapping.sale_date]); if(d){ if(!minD||d<minD) minD=d; if(!maxD||d>maxD) maxD=d; } });
+    if(minD && maxD) run('DELETE FROM daily_sales WHERE sale_date BETWEEN ? AND ?', [minD, maxD]);
+  }
+  if(st.target==='salary' && replace){
+    run('DELETE FROM salary_sheet WHERE pay_month=?', [payMonth]);
+  }
+
+  let stmt;
+  if(st.target==='sales') stmt = db.prepare(`INSERT INTO daily_sales(sale_date,store_id,employee_id,category_id,qty,mrp_value,discount,net_value,remarks) VALUES (?,?,?,?,?,?,?,?,?)`);
+  if(st.target==='soh') stmt = db.prepare(`INSERT INTO soh_snapshot(snapshot_date,store_id,category_id,item_code,item_desc,soh_qty,mrp) VALUES (?,?,?,?,?,?,?)`);
+  if(st.target==='employees') stmt = db.prepare(`INSERT INTO employees(name,store_id,designation,status) VALUES (?,?,?,?)`);
+  if(st.target==='stores') stmt = db.prepare(`INSERT INTO stores(store_name,store_code,area_name,region_name,district_name,store_type) VALUES (?,?,?,?,?,?)`);
+  if(st.target==='warehouse') stmt = db.prepare(`INSERT INTO warehouse_items(shop_no,group_name,style_code,ean_number,season,mrp,hsn_code,gst_rate,rrp,qty,category,sub_category,size,colour,options,working_entry,stock_diff,remarks) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  if(st.target==='salary') stmt = db.prepare(`INSERT INTO salary_sheet(pay_month,${SALARY_KEYS.join(',')}) VALUES (?,${SALARY_KEYS.map(()=>'?').join(',')})`);
+
+  function cell(r, key){ const idx = mapping[key]; return idx===-1||idx===undefined ? '' : r[idx]; }
+  function storeId(r){ const v = cell(r,'store_name'); return v ? lookupOrCreate(lookupCaches.stores,'stores','store_name', v) : null; }
+  function catId(r){ const v = cell(r,'category'); return v ? lookupOrCreate(lookupCaches.categories,'categories','name', v) : null; }
+  function empId(r){ const v = cell(r,'employee_name'); return v ? lookupOrCreate(lookupCaches.employees,'employees','name', v) : null; }
+
+  let i = 0;
+  function processChunk(){
+    const chunkEnd = Math.min(i+1500, rows.length);
+    for(; i<chunkEnd; i++){
+      const r = rows[i];
+      try{
+        if(st.target==='sales'){
+          const d = parseDate(cell(r,'sale_date'));
+          if(!d){ skipped++; continue; }
+          const sId = storeId(r);
+          if(!sId){ skipped++; continue; }
+          stmt.run([d, sId, empId(r), catId(r), Number(cell(r,'qty'))||0, Number(cell(r,'mrp_value'))||0, Number(cell(r,'discount'))||0, Number(cell(r,'net_value'))||0, String(cell(r,'remarks')||'')]);
+        } else if(st.target==='soh'){
+          const sId = storeId(r);
+          if(!sId){ skipped++; continue; }
+          stmt.run([asOfDate, sId, catId(r), String(cell(r,'item_code')||''), String(cell(r,'item_desc')||''), Number(cell(r,'soh_qty'))||0, Number(cell(r,'mrp'))||0]);
+        } else if(st.target==='employees'){
+          const name = cell(r,'name');
+          if(!name){ skipped++; continue; }
+          stmt.run([String(name), storeId(r), String(cell(r,'designation')||''), String(cell(r,'status')||'Active')]);
+        } else if(st.target==='stores'){
+          const name = cell(r,'store_name');
+          if(!name){ skipped++; continue; }
+          stmt.run([String(name), String(cell(r,'store_code')||''), String(cell(r,'area_name')||''), String(cell(r,'region_name')||''), String(cell(r,'district_name')||''), String(cell(r,'store_type')||'')]);
+        } else if(st.target==='warehouse'){
+          const num = v => { const n = Number(v); return isNaN(n)||v==='' ? null : n; };
+          stmt.run([String(cell(r,'shop_no')||''), String(cell(r,'group_name')||''), String(cell(r,'style_code')||''), String(cell(r,'ean_number')||''),
+            String(cell(r,'season')||''), num(cell(r,'mrp')), String(cell(r,'hsn_code')||''), num(cell(r,'gst_rate')), num(cell(r,'rrp')), num(cell(r,'qty')),
+            String(cell(r,'category')||''), String(cell(r,'sub_category')||''), String(cell(r,'size')||''), String(cell(r,'colour')||''),
+            String(cell(r,'options')||''), String(cell(r,'working_entry')||''), num(cell(r,'stock_diff')), String(cell(r,'remarks')||'')]);
+        } else if(st.target==='salary'){
+          const name = cell(r,'employee_name_text');
+          if(!name){ skipped++; continue; }
+          const vals2 = SALARY_KEYS.map(k=>{
+            const field = SALARY_FIELDS.find(sf=>sf.key===k);
+            const raw = cell(r,k);
+            if(field.type==='number'){ const n = Number(raw); return raw===''||isNaN(n) ? null : n; }
+            if(field.type==='date'){ return parseDate(raw) || (raw?String(raw):''); }
+            return String(raw||'');
+          });
+          stmt.run([payMonth, ...vals2]);
+        }
+        inserted++;
+      }catch(err){ skipped++; if(errors.length<5) errors.push(err.message); }
+    }
+    progressEl.textContent = `Importing… ${i} of ${rows.length} rows processed.`;
+    if(i < rows.length){
+      setTimeout(processChunk, 0);
+    } else {
+      stmt.free();
+      db.exec('COMMIT');
+      if(st.fileHash){
+        try{
+          run(`INSERT OR REPLACE INTO upload_logs(file_name,file_size,file_hash,target,rows_inserted,rows_skipped,uploaded_at) VALUES (?,?,?,?,?,?,?)`,
+            [st.fileName, st.fileSize, st.fileHash, st.target, inserted, skipped, new Date().toISOString()]);
+        }catch(e){ /* logging is best-effort, don't block the import result */ }
+      }
+      dirty = true; updateDirtyStatus();
+      progressEl.innerHTML = `<b>Done.</b> ${inserted} rows imported, ${skipped} skipped.` +
+        (errors.length ? `<br>Sample errors: ${errors.map(esc).join(' | ')}` : '') +
+        (skipped ? `<br>Skipped rows are usually missing a required value (e.g. no store name or unreadable date) — check the source file for blank rows.` : '');
+    }
+  }
+  processChunk();
+}
+
+function downloadTemplate(target){
+  const def = IMPORT_TARGETS[target];
+  const headers = def.fields.map(f=>f.label);
+  const csv = headers.join(',') + '\n';
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${target}-template.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+/* ============ MANAGE CUSTOM FIELDS ============ */
+function renderCustomFields(){
+  const e = editing.customfield || {};
+  const fields = q('SELECT * FROM custom_fields ORDER BY entity, sort_order, id');
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Custom Fields</h2>
+    <p class="page-sub">Add your own fields to any tab — no coding needed. A new field shows up immediately in that tab's form and table.</p>
+    <div class="panel">
+      <form class="entry-form" id="cfForm" style="border-bottom:none;">
+        <div class="field"><label>Add field to*</label>
+          <select required name="entity">${Object.entries(CUSTOM_ENTITIES).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Field label*</label><input required name="field_label" placeholder="e.g. PAN Number"></div>
+        <div class="field"><label>Field type*</label>
+          <select required name="field_type" onchange="document.getElementById('cfOptionsWrap').style.display=this.value==='select'?'flex':'none';">
+            <option value="text">Text</option><option value="number">Number</option><option value="date">Date</option><option value="select">Dropdown</option>
+          </select>
+        </div>
+        <div class="field" id="cfOptionsWrap" style="display:none"><label>Dropdown options</label><input name="options" placeholder="comma, separated, values"></div>
+        <button class="btn btn-brass" type="submit">Add field</button>
+      </form>
+      <table>
+        <thead><tr><th>Tab</th><th>Field</th><th>Type</th><th></th></tr></thead>
+        <tbody>
+        ${fields.length?fields.map(f=>`
+          <tr><td>${esc(CUSTOM_ENTITIES[f.entity]||f.entity)}</td><td>${esc(f.field_label)}</td>
+          <td>${esc(f.field_type)}${f.field_type==='select'?` (${esc(f.options)})`:''}</td>
+          <td><button class="rowlink danger" onclick="deleteCustomField(${f.id})">Remove</button></td></tr>`).join(''):
+          `<tr><td colspan="4" class="empty">No custom fields yet — add one above.</td></tr>`}
+        </tbody>
+      </table>
+      <p class="hint">Removing a field also permanently deletes any values already entered for it, on every record.</p>
+    </div>
+  `;
+  document.getElementById('cfForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    run('INSERT INTO custom_fields(entity,field_label,field_type,options,sort_order) VALUES (?,?,?,?,0)',
+      [f.get('entity'), f.get('field_label'), f.get('field_type'), f.get('options')||'']);
+    render();
+  });
+}
+function deleteCustomField(id){
+  if(!confirm('Remove this field? Any values already entered for it, on every record, will be deleted too.')) return;
+  run('DELETE FROM custom_field_values WHERE field_id=?', [id]);
+  run('DELETE FROM custom_fields WHERE id=?', [id]);
+  render();
+}
+
+/* ============ THEME / SPLASH PAGE ============ */
+let themeImages = [];
+let themeSlideIdx = 0;
+let themeSlideTimer = null;
+let idleTimer = null;
+function loadThemeImages(){
+  themeImages = q('SELECT id, data_url FROM theme_images ORDER BY sort_order, id');
+  renderThemeCorner();
+}
+function renderThemeCorner(){
+  const el = document.getElementById('themeCorner');
+  const countEl = document.getElementById('themeCount');
+  if(countEl) countEl.textContent = themeImages.length;
+  if(!el) return;
+  if(!themeImages.length){
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8D9080;font-size:12px;">No photos yet</div>';
+    return;
+  }
+  el.innerHTML = themeImages.map((im,i)=>`<img src="${im.data_url}" class="${i===0?'active':''}">`).join('');
+  themeSlideIdx = 0;
+  startThemeSlideshow();
+}
+function startThemeSlideshow(){
+  if(themeSlideTimer) clearInterval(themeSlideTimer);
+  if(themeImages.length<2) return;
+  themeSlideTimer = setInterval(()=>{
+    const imgs = document.querySelectorAll('#themeCorner img');
+    if(!imgs.length) return;
+    imgs[themeSlideIdx].classList.remove('active');
+    themeSlideIdx = (themeSlideIdx+1) % imgs.length;
+    imgs[themeSlideIdx].classList.add('active');
+  }, 3000);
+}
+function handleThemeUpload(e){
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  const capacity = 50 - themeImages.length;
+  if(capacity<=0){ alert('You already have 50 photos — that is the maximum.'); e.target.value=''; return; }
+  const toProcess = files.slice(0, capacity);
+  if(files.length>toProcess.length) alert(`Only the first ${toProcess.length} photo(s) were added — 50 photo limit reached.`);
+  let remaining = toProcess.length;
+  let nextOrder = themeImages.length;
+  toProcess.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      run('INSERT INTO theme_images(data_url, sort_order) VALUES (?, ?)', [ev.target.result, nextOrder++]);
+      remaining--;
+      if(remaining===0){ loadThemeImages(); }
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+function enterApp(){
+  document.getElementById('themePage').style.display = 'none';
+  goTab('dashboard');
+  resetIdleTimer();
+}
+function showThemePage(){
+  document.getElementById('themePage').style.display = 'flex';
+}
+function resetIdleTimer(){
+  if(idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(showThemePage, 120000);
+}
+['mousemove','keydown','click','touchstart'].forEach(evt => document.addEventListener(evt, resetIdleTimer));
+
+/* ============ GENERIC DELETE ============ */
+function deleteRow(table, id){
+  if(!confirm('Delete this record? This cannot be undone (until you reload a saved backup).')) return;
+  run(`DELETE FROM ${table} WHERE id=?`,[id]);
+  render();
+}
+</script>
+</body>
+</html>
